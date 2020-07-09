@@ -31,8 +31,8 @@ ChatWidget::ChatWidget(QWidget *parent) :
     m_pTextEdit->setSizePolicy(policy);
     ui->inputTextEdit->setLineWrapMode(QTextEdit::WidgetWidth);
 
-    m_strContentTemplateWithoutLink = "<a>%1</a></br>&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%3)</a></br>";
-    m_strContentTemplateWithLink = "<a>%1</a></br>&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%5)</a></br>";
+    m_strContentTemplateWithoutLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%3)</a></p>";
+    m_strContentTemplateWithLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%5)</a></p>";
 
     int nCount = ui->showMsgTabWidget->count();
     for (int i = 0; i < nCount; ++i) {
@@ -105,9 +105,9 @@ void ChatWidget::on_sendMsgPushButton_clicked()
         msgInfo.fileLink = "";
         m_vecMsgInfos.push_back(msgInfo);
 
-        QString originText = m_pTextEdit->toHtml();
-        originText += m_strContentTemplateWithoutLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.strTime);
-        m_pTextEdit->setHtml(originText);
+        m_jStringMessages["message"] += m_strContentTemplateWithoutLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.strTime);
+        qDebug() << "message:" << m_jStringMessages["message"];
+        m_pTextEdit->setHtml(m_jStringMessages["message"]);
         m_pTextEdit->moveCursor(QTextCursor::End);
     } else if (!msg.isEmpty() && nCurIndex != 0) {
         QJsonObject jsonObj;
@@ -132,11 +132,18 @@ void ChatWidget::on_sendMsgPushButton_clicked()
         m_vecMsgInfos.push_back(msgInfo);
 
         QTextEdit *pEdit = (QTextEdit *)ui->showMsgTabWidget->widget(nCurIndex);
-        QString originText = pEdit->toHtml();
-        originText += m_strContentTemplateWithLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+        if (!m_strFileLink.isEmpty()) {
+            m_jStringMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+        } else {
+            m_jStringMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithoutLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.strTime);
+        }
+        QString originText = m_jStringMessages[m_vecUserIds[nCurIndex - 1]];
         pEdit->setHtml(originText);
         pEdit->moveCursor(QTextCursor::End);
+        connect(pEdit, SIGNAL(), this, SLOT(OnTextEditLinkClicked()));
     }
+
+    m_strFileLink = "";
 }
 
 void ChatWidget::keyPressEvent(QKeyEvent *e) {
@@ -187,13 +194,13 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
 
                 m_vecMsgInfos.push_back(msgInfo);
 
-                QString originText = m_pTextEdit->toHtml();
+
                 if (msgInfo.fileLink.isEmpty()) {
-                    originText += "    " + msgInfo.strMsg + "    (" + msgInfo.strTime + ")</br>";
+                    m_jStringMessages["message"] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
                 } else {
-                    originText += m_strContentTemplateWithLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+                    m_jStringMessages["message"] += m_strContentTemplateWithLink.arg(g_stUserInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
                 }
-                m_pTextEdit->setHtml(originText);
+                m_pTextEdit->setHtml(m_jStringMessages["message"]);
                 m_pTextEdit->moveCursor(QTextCursor::End);
                 emit newMessageArrived();
                 ui->showMsgTabWidget->setCurrentIndex(0);
@@ -252,14 +259,12 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                 if (!bExist) {
                     QTextEdit *pEdit = new QTextEdit();
                     pEdit->setReadOnly(true);
-                    QString originText = pEdit->toHtml();
-                    originText += msgInfo.strUserName + ":</br>";
                     if (msgInfo.fileLink.isEmpty()) {
-                        originText += "    " + msgInfo.strMsg + "    (" + msgInfo.strTime + ")</br>";
+                        m_jStringMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
                     } else {
-                        originText += "    " + msgInfo.strMsg + "</br><a href=\"" + msgInfo.fileLink + "\">" + msgInfo.fileLink + "</a>    (" + msgInfo.strTime + ")</br>";
+                        m_jStringMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
                     }
-                    pEdit->setHtml(originText);
+                    pEdit->setHtml(m_jStringMessages[msgInfo.strUserId]);
                     pEdit->moveCursor(QTextCursor::End);
                     ui->showMsgTabWidget->addTab(pEdit, msgInfo.strUserName);
                     ui->showMsgTabWidget->tabBar()->setTabButton(0, QTabBar::RightSide, nullptr);
@@ -268,14 +273,12 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                 } else {
                     ui->showMsgTabWidget->setCurrentIndex(nIndex);
                     QTextEdit *pEdit = (QTextEdit *)ui->showMsgTabWidget->widget(nIndex);
-                    QString originText = pEdit->toHtml();
-                    originText += msgInfo.strUserName + ":</br>";
                     if (msgInfo.fileLink.isEmpty()) {
-                        originText += "    " + msgInfo.strMsg + "    (" + msgInfo.strTime + ")</br>";
+                        m_jStringMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
                     } else {
-                        originText += "    " + msgInfo.strMsg + "</br><a href=\"" + msgInfo.fileLink + "\">" + msgInfo.fileLink + "</a>    (" + msgInfo.strTime + ")</br>";
+                        m_jStringMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
                     }
-                    pEdit->setHtml(originText);
+                    pEdit->setHtml(m_jStringMessages[msgInfo.strUserId]);
                     pEdit->moveCursor(QTextCursor::End);
                 }
                 emit newMessageArrived();
@@ -388,38 +391,41 @@ void ChatWidget::OnUploadFilePushButtonClicked() {
     QString fileName = filePath.mid(filePath.lastIndexOf('/') + 1);
     qDebug() << "filePath:" << filePath << " fileName:" << fileName;
 
-    QSettings setting;
-    QString host = setting.value(WEBSOCKET_SERVER_HOST).toString();
-    QString port = setting.value(WEBSOCKET_SERVER_PORT).toString();
-    QString msg = ui->inputTextEdit->toPlainText();
-    int nCurIndex = ui->showMsgTabWidget->currentIndex();
-    if (nCurIndex != 0) {
-        QJsonObject jsonObj;
-        jsonObj["username"] = g_stUserInfo.strUserName;
-        jsonObj["userid"] = g_stUserInfo.strUserId;
-        jsonObj["message"] = msg + "    上传文件:";
-        jsonObj["time"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-        m_strFileLink = "http://" + host + ":" + port + "/uploadfiles/" + fileName;
-        jsonObj["filelink"] = m_strFileLink;
-        QJsonObject jsonMsg;
-        jsonMsg[m_vecUserIds[nCurIndex - 1]] = jsonObj;
-        QJsonDocument jsonDoc(jsonMsg);
+    emit uploadFile(filePath);
 
-        g_WebSocket.sendTextMessage(jsonDoc.toJson(QJsonDocument::Compact));
-        ui->inputTextEdit->clear();
-        MsgInfo msgInfo;
-        msgInfo.strUserName = g_stUserInfo.strUserName;
-        msgInfo.strUserId = g_stUserInfo.strUserId;
-        msgInfo.strEmail = g_stUserInfo.strEmail;
-        msgInfo.strMsg = msg;
-        msgInfo.strTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-        m_vecMsgInfos.push_back(msgInfo);
+//    QSettings setting;
+//    QString host = setting.value(WEBSOCKET_SERVER_HOST).toString();
+//    QString port = setting.value(WEBSOCKET_SERVER_PORT).toString();
+//    QString msg = ui->inputTextEdit->toPlainText();
+//    int nCurIndex = ui->showMsgTabWidget->currentIndex();
+//    if (nCurIndex != 0) {
+//        QJsonObject jsonObj;
+//        jsonObj["username"] = g_stUserInfo.strUserName;
+//        jsonObj["userid"] = g_stUserInfo.strUserId;
+//        jsonObj["message"] = msg + "    上传文件:";
+//        jsonObj["time"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+//        m_strFileLink = "http://" + host + ":" + port + "/uploadfiles/" + fileName;
+//        jsonObj["filelink"] = m_strFileLink;
+//        QJsonObject jsonMsg;
+//        jsonMsg[m_vecUserIds[nCurIndex - 1]] = jsonObj;
+//        QJsonDocument jsonDoc(jsonMsg);
 
-        QTextEdit *pEdit = (QTextEdit *)ui->showMsgTabWidget->widget(nCurIndex);
-        QString originText = pEdit->toPlainText();
-        originText += g_stUserInfo.strUserName + ":</br>";
-        originText += "    " + msg + "    (" + msgInfo.strTime + ")</br>";
-        pEdit->setText(originText);
-        pEdit->moveCursor(QTextCursor::End);
-    }
+//        g_WebSocket.sendTextMessage(jsonDoc.toJson(QJsonDocument::Compact));
+//        ui->inputTextEdit->clear();
+//        MsgInfo msgInfo;
+//        msgInfo.strUserName = g_stUserInfo.strUserName;
+//        msgInfo.strUserId = g_stUserInfo.strUserId;
+//        msgInfo.strEmail = g_stUserInfo.strEmail;
+//        msgInfo.strMsg = msg;
+//        msgInfo.strTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+//        msgInfo.fileLink = m_strFileLink;
+//        m_vecMsgInfos.push_back(msgInfo);
+
+//        QTextEdit *pEdit = (QTextEdit *)ui->showMsgTabWidget->widget(nCurIndex);
+//        m_jStringMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+//        pEdit->setHtml(m_jStringMessages[m_vecUserIds[nCurIndex - 1]]);
+//        pEdit->moveCursor(QTextCursor::End);
+
+//        m_strFileLink = "";
+//    }
 }

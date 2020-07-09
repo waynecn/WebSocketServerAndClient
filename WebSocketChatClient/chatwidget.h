@@ -35,22 +35,24 @@ private slots:
     void OnUploadFilePushButtonClicked();
 
 private:
-    Ui::ChatWidget *ui;
+    Ui::ChatWidget              *ui;
 
-    QTextEdit           *m_pTextEdit;
+    QTextEdit                   *m_pTextEdit;
 
-    bool                m_bCtrlPressed;
-    QVector<MsgInfo>    m_vecMsgInfos;
-    QVector<UserInfo>   m_vecOnlineUsers;
-    QString             m_strFileLink;
-    QString             m_strContentTemplateWithLink;
-    QString             m_strContentTemplateWithoutLink;
+    bool                        m_bCtrlPressed;
+    QMap<QString, QString>      m_jStringMessages;
+    QVector<MsgInfo>            m_vecMsgInfos;
+    QVector<UserInfo>           m_vecOnlineUsers;
+    QString                     m_strFileLink;
+    QString                     m_strContentTemplateWithLink;
+    QString                     m_strContentTemplateWithoutLink;
 
-    bool                m_bIsMainWindow;
-    QVector<QString>    m_vecUserIds;   //用于保存多窗口的userId
+    bool                        m_bIsMainWindow;
+    QVector<QString>            m_vecUserIds;   //用于保存多窗口的userId
 
 signals:
     void newMessageArrived();
+    void uploadFile(QString filePath);
 };
 
 #endif // CHATWIDGET_H

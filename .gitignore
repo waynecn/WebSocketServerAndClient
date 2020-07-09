@@ -23,5 +23,6 @@ _testmain.go
 *.test
 *.prof
 WebsocketServer/WebsocketServer*
+WebsocketServer/public/uploads/*
 
 WebSocketChatClient.pro.user

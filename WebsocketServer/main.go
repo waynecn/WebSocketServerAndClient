@@ -8,6 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"path/filepath"
+	"os"
+	"mime"
+	_ "mime/multipart"
 
 	"github.com/gorilla/websocket"
 
@@ -130,6 +134,7 @@ func main() {
 	http.Handle("/", fs)
 
 	//http request response
+	http.HandleFunc("/upload", uploadFunction)
 	http.HandleFunc("/login", loginFunction)
 	http.HandleFunc("/register", registerFunction)
 
@@ -154,6 +159,14 @@ type HttpResponse struct {
 	Username string
 }
 
+func getCurrentDirectory() string {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Replace(dir, "\\", "/", -1)
+}
+
 func checkErr(err error, msg string, w http.ResponseWriter) (bool) {
 	if err != nil {
 		response := HttpResponse{false, msg + err.Error(), -1, ""}
@@ -168,6 +181,59 @@ func checkErr(err error, msg string, w http.ResponseWriter) (bool) {
 		return false
 	}
 	return true
+}
+
+func uploadFunction(w http.ResponseWriter, r *http.Request) {
+	log.Println("method:", r.Method);
+	log.Println("r:", r);
+	if (r.Method != "POST") {
+		w.Write([]byte("invalid request"));
+		return;
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	fmt.Println("contentType: ", contentType)
+	mediatype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		fmt.Println("ParseMediaType error: ", err)
+		w.Write([]byte("ParseMediaType error"))
+		return
+	}
+	fmt.Println("mediatype: ", mediatype)
+	if mediatype == "application/octet-stream" {
+		fileName := "tempFileName.txt"
+		if fileName != "" {
+			curDir := getCurrentDirectory()
+			log.Println("curDir:", curDir)
+			dir := curDir + "/public/uploads"
+			_, err = os.Stat(dir)
+			if err != nil && os.IsNotExist(err) {
+				//目录不存在
+				err = os.MkdirAll(dir, 0777)
+				if err != nil {
+					log.Println("create dir failed:", err)
+					var bts = []byte("create dir failed")
+					w.Write(bts)
+					return
+				}
+			}
+			fo, err := os.Create(curDir + "/public/uploads/" + fileName)
+			if err != nil {
+				log.Println("os create file err: ", err)
+				var bts = []byte("os create file err")
+				w.Write(bts)
+				return
+			}
+			defer fo.Close()
+			formValue, _ := ioutil.ReadAll(r.Body)
+			fo.Write(formValue);
+		}
+	}
+
+	fmt.Println("***********************************")
+
+	var bts = []byte("success");
+	w.Write(bts)
 }
 
 func loginFunction(w http.ResponseWriter, r *http.Request) {
