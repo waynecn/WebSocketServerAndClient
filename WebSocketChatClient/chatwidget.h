@@ -31,6 +31,8 @@ private slots:
     void OnWebSocketMsgReceived(const QString &msg);
     void OnItemDoubleClicked(QTableWidgetItem *item);
     void OnTabCloseRequested(int index);
+    void OnCurrentChanged(int index);
+    void OnUploadFilePushButtonClicked();
 
 private:
     Ui::ChatWidget *ui;
@@ -40,6 +42,9 @@ private:
     bool                m_bCtrlPressed;
     QVector<MsgInfo>    m_vecMsgInfos;
     QVector<UserInfo>   m_vecOnlineUsers;
+    QString             m_strFileLink;
+    QString             m_strContentTemplateWithLink;
+    QString             m_strContentTemplateWithoutLink;
 
     bool                m_bIsMainWindow;
     QVector<QString>    m_vecUserIds;   //用于保存多窗口的userId

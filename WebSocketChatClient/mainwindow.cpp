@@ -20,7 +20,6 @@ MainWindow::MainWindow(QWidget *parent)
     QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
     m_strWsUrl = QString("ws://%1:%2/ws").arg(host).arg(port);
-    qDebug() << "m_strWsUrl:" << m_strWsUrl;
     QUrl url(m_strWsUrl);
     g_WebSocket.open(url);
 

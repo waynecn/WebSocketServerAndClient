@@ -24,6 +24,7 @@ typedef struct _msg_info {
     QString strUserId;
     QString strMsg;
     QString strTime;
+    QString fileLink;
 } MsgInfo, *PMsgInfo;
 
 enum HttpRequest {

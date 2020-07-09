@@ -32,6 +32,7 @@ type Message struct {
 	Username string `json:"username"`
 	Userid   string `json:"userid"`
 	Message  string `json:"message"`
+	Filelink string `json:"filelink"`
 }
 
 type StringMessage struct {
