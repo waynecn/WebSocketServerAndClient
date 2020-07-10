@@ -32,8 +32,8 @@ ChatWidget::ChatWidget(QWidget *parent) :
     m_pTextBrowser->setSizePolicy(policy);
     ui->inputTextEdit->setLineWrapMode(QTextEdit::WidgetWidth);
 
-    m_strContentTemplateWithoutLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%3)</a></p>";
-    m_strContentTemplateWithLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>上传文件:</a><a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%5)</a></p>";
+    m_strContentTemplateWithoutLink = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%3)</a></p>";
+    m_strContentTemplateWithLink = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>上传文件:</a><a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%5)</a></p>";
 
     int nCount = ui->showMsgTabWidget->count();
     for (int i = 0; i < nCount; ++i) {
