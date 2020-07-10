@@ -8,6 +8,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"os"
+	"mime"
+	_ "mime/multipart"
+	"path/filepath"
+	"net/url"
 
 	"github.com/gorilla/websocket"
 
@@ -106,7 +111,7 @@ func connectSql() (*sql.DB, error) {
 	log.Println("dsn:", dsn)
     db, err := sql.Open("mysql", dsn)
     if err != nil {
-		fmt.Printf("mysql connect failed, detail is [%v]", err.Error())
+		log.Printf("mysql connect failed, detail is [%v]", err.Error())
 		return nil, err
     }
     return db, nil
@@ -116,7 +121,7 @@ func main() {
 	//Read config
 	configPath := "./config/config.json"
 	g_sqlConfig = ReadConfig(configPath)
-	fmt.Println("sqlConfig:", g_sqlConfig)
+	log.Println("sqlConfig:", g_sqlConfig)
 	var err error
 	g_Db, err = connectSql()
 	if err != nil {
@@ -130,6 +135,7 @@ func main() {
 	http.Handle("/", fs)
 
 	//http request response
+	http.HandleFunc("/uploads", uploadFunction)
 	http.HandleFunc("/login", loginFunction)
 	http.HandleFunc("/register", registerFunction)
 
@@ -154,6 +160,14 @@ type HttpResponse struct {
 	Username string
 }
 
+func getCurrentDirectory() string {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Replace(dir, "\\", "/", -1)
+}
+
 func checkErr(err error, msg string, w http.ResponseWriter) (bool) {
 	if err != nil {
 		response := HttpResponse{false, msg + err.Error(), -1, ""}
@@ -168,6 +182,104 @@ func checkErr(err error, msg string, w http.ResponseWriter) (bool) {
 		return false
 	}
 	return true
+}
+
+func uploadFunction(w http.ResponseWriter, r *http.Request) {
+	if (r.Method != "POST") {
+		log.Println("invalid request")
+		io.WriteString(w, "invalid request")
+		return
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	contentLen := r.ContentLength
+	log.Println("contentType: ", contentType, " contentLen:", contentLen)
+	mediatype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		log.Println("ParseMediaType error: ", err)
+		w.Write([]byte("ParseMediaType error"))
+		return
+	}
+	curDir := getCurrentDirectory()
+	log.Println("curDir:", curDir)
+	dir := curDir + "/public/uploads"
+	log.Println("mediatype: ", mediatype)
+	if mediatype == "multipart/form-data" {
+		log.Println("in multipart parsing...")
+		log.Println("r.MultipartForm:", r.MultipartForm)
+		if (r.MultipartForm != nil) {
+			for name, files := range r.MultipartForm.File {
+				log.Printf("req.MultipartForm.File,name=:", name, " files:", len(files))
+				if len(files) != 1 {
+					w.Write([]byte("too many files"))
+					return
+				}
+				if name == "" {
+					w.Write([]byte("is not FileData"))
+					return
+				}
+				for _, f := range files {
+					handle, err := f.Open()
+					if err != nil {
+						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
+						return
+					}
+		
+					path := dir + f.Filename
+					dst, _ := os.Create(path)
+					io.Copy(dst, handle)
+					dst.Close()
+					fmt.Printf("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
+		
+					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
+				}
+			}
+		} else {
+			reader, err := r.MultipartReader()
+			if err != nil {
+				panic(err)
+			}
+			for {
+				p, err := reader.NextPart()
+				if err == io.EOF {
+					log.Println("EOF break")
+					break;
+				}
+
+				if err != nil {
+					log.Println("reader.NextPart error!", err)
+					break;
+				}
+
+				fileName := p.FileName()
+				log.Println("fileName:", fileName)
+				if fileName != "" {
+					_, err = os.Stat(dir)
+					if err != nil && os.IsNotExist(err) {
+						//目录不存在
+						err = os.MkdirAll(dir, 0777)
+						if err != nil {
+							log.Println("create dir failed:", err)
+							continue
+						}
+					}
+					fo, err := os.Create(dir + "/" + fileName)
+					if err != nil {
+						log.Println("os create file err: ", err)
+						continue
+					}
+					defer fo.Close()
+					formValue, _ := ioutil.ReadAll(p)
+					fo.Write(formValue);
+				}
+			}
+		}
+	}
+
+	log.Println("***********************************")
+
+	var bts = []byte("success");
+	w.Write(bts)
 }
 
 func loginFunction(w http.ResponseWriter, r *http.Request) {

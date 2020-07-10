@@ -26,6 +26,9 @@ public:
     void keyPressEvent(QKeyEvent *e);
     void keyReleaseEvent(QKeyEvent *e);
 
+public slots:
+    void OnUploadFileSuccess(QString filePath);
+
 private slots:
     void on_sendMsgPushButton_clicked();
     void OnWebSocketMsgReceived(const QString &msg);
@@ -45,12 +48,14 @@ private:
     QString             m_strFileLink;
     QString             m_strContentTemplateWithLink;
     QString             m_strContentTemplateWithoutLink;
+    QMap<QString, QString>  m_jMessages;
 
     bool                m_bIsMainWindow;
     QVector<QString>    m_vecUserIds;   //用于保存多窗口的userId
 
 signals:
     void newMessageArrived();
+    void uploadFile(QString filePath);
 };
 
 #endif // CHATWIDGET_H

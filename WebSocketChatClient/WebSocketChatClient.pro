@@ -21,6 +21,7 @@ SOURCES += \
     logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
+    progressdialog.cpp \
     registerdlg.cpp \
     settingdlg.cpp
 
@@ -29,6 +30,7 @@ HEADERS += \
     common.h \
     logindialog.h \
     mainwindow.h \
+    progressdialog.h \
     registerdlg.h \
     settingdlg.h
 
@@ -36,6 +38,7 @@ FORMS += \
     chatwidget.ui \
     logindialog.ui \
     mainwindow.ui \
+    progressdialog.ui \
     registerdlg.ui \
     settingdlg.ui
 

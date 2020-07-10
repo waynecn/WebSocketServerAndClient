@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "chatwidget.h"
+#include "progressdialog.h"
 
 #include <QMainWindow>
 #include <QSplitter>
@@ -12,6 +13,9 @@
 #include <QKeyEvent>
 #include <QTableWidgetItem>
 #include <QTabWidget>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QProgressDialog>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -34,18 +38,27 @@ private slots:
     void OnWebSocketDisconnected();
     void OnWebSocketError(QAbstractSocket::SocketError err);
     void OnNewMessageArrived();
+    void OnUploadFile(QString filePath);
+    void uploadFileFinished(QNetworkReply *reply);
+    void upLoadError(QNetworkReply::NetworkError err);
+    void OnUploadProgress(qint64 recved, qint64 total);
 
 private:
-    Ui::MainWindow      *ui;
+    Ui::MainWindow          *ui;
 
-    QString             m_strWsUrl;
-    QSettings           m_Settings;
-    bool                m_bCtrlPressed;
+    QString                 m_strWsUrl;
+    QSettings               m_Settings;
+    bool                    m_bCtrlPressed;
 
-    ChatWidget          *m_pChatWidget;
+    ChatWidget              *m_pChatWidget;
+    QNetworkAccessManager   *m_pAccessManager;
+    QNetworkReply           *m_pNetworkReply;
+    ProgressDialog          *m_pProgressDialog;
+    QString                 m_strUploadFilePath;
 
 signals:
     void webscketDisconnected();
     void websocketConnected();
+    void uploadFileSuccess(QString filePath);
 };
 #endif // MAINWINDOW_H
