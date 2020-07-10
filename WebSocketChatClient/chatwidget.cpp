@@ -32,7 +32,7 @@ ChatWidget::ChatWidget(QWidget *parent) :
     ui->inputTextEdit->setLineWrapMode(QTextEdit::WidgetWidth);
 
     m_strContentTemplateWithoutLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%3)</a></p>";
-    m_strContentTemplateWithLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%5)</a></p>";
+    m_strContentTemplateWithLink = "<p><a>%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>上传文件:</a><a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>(%5)</a></p>";
 
     int nCount = ui->showMsgTabWidget->count();
     for (int i = 0; i < nCount; ++i) {
@@ -398,7 +398,7 @@ void ChatWidget::OnUploadFileSuccess(QString filePath) {
         QJsonObject jsonObj;
         jsonObj["username"] = g_stUserInfo.strUserName;
         jsonObj["userid"] = g_stUserInfo.strUserId;
-        jsonObj["message"] = msg + "    上传文件:";
+        jsonObj["message"] = msg;
         jsonObj["time"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
         m_strFileLink = "http://" + host + ":" + port + "/uploads/" + fileName;
         jsonObj["filelink"] = m_strFileLink;
