@@ -2,13 +2,13 @@
 #define CHATWIDGET_H
 
 #include "common.h"
+#include "mytextbrowser.h"
 
 #include <QWidget>
 #include <QtWebSockets/QWebSocket>
 #include <QSplitter>
 #include <QTableWidgetItem>
 #include <QKeyEvent>
-#include <QTextEdit>
 
 namespace Ui {
 class ChatWidget;
@@ -40,7 +40,7 @@ private slots:
 private:
     Ui::ChatWidget *ui;
 
-    QTextEdit           *m_pTextEdit;
+    MyTextBrowser       *m_pTextBrowser;
 
     bool                m_bCtrlPressed;
     QVector<MsgInfo>    m_vecMsgInfos;
@@ -56,6 +56,7 @@ private:
 signals:
     void newMessageArrived();
     void uploadFile(QString filePath);
+    void anchorClicked(const QUrl &url);
 };
 
 #endif // CHATWIDGET_H

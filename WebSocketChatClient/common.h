@@ -29,7 +29,9 @@ typedef struct _msg_info {
 
 enum HttpRequest {
     REQUEST_LOGIN,
-    REQUEST_REGISTER
+    REQUEST_REGISTER,
+    REQUEST_UPLOAD_FILE,
+    REQUEST_DOWNLOAD_FILE
 };
 
 const QString WEBSOCKET_ERROR_STRINGS[24] = {

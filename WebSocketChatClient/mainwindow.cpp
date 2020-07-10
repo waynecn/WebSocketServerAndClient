@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QMessageBox>
 #include <QHttpMultiPart>
+#include <QFileDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -33,8 +34,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(&g_WebSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(OnWebSocketError(QAbstractSocket::SocketError)));
     connect(m_pChatWidget, SIGNAL(newMessageArrived()), this, SLOT(OnNewMessageArrived()));
     connect(m_pChatWidget, SIGNAL(uploadFile(QString)), this, SLOT(OnUploadFile(QString)));
+    connect(m_pChatWidget, SIGNAL(anchorClicked(const QUrl &)), this, SLOT(OnAnchorClicked(const QUrl &)));
     connect(this, SIGNAL(uploadFileSuccess(QString)), m_pChatWidget, SLOT(OnUploadFileSuccess(QString)));
-    connect(m_pAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(uploadFileFinished(QNetworkReply*)));
+    connect(m_pAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(OnNetworkReplyFinished(QNetworkReply*)));
 }
 
 MainWindow::~MainWindow()
@@ -116,6 +118,7 @@ void MainWindow::OnUploadFile(QString filePath) {
 
     multiPart->append(filePart);
 
+    m_eHttpRequest = REQUEST_UPLOAD_FILE;
     QUrl url(uploadUrl);
     QNetworkRequest req(url);
     m_pNetworkReply = m_pAccessManager->post(req, multiPart);
@@ -127,13 +130,56 @@ void MainWindow::OnUploadFile(QString filePath) {
     m_pProgressDialog->exec();
 }
 
-void MainWindow::uploadFileFinished(QNetworkReply *reply) {
+void MainWindow::OnAnchorClicked(const QUrl &url) {
+    m_strDownLoadFilePath.clear();
+    qDebug() << "anchro clicked:" << url;
+    QString strUrl = url.toString();
+    QString fileName = strUrl.mid(strUrl.lastIndexOf('/') + 1);
+    qDebug() << "fileName:" << fileName;
+
+    QFileDialog fDlg;
+    fDlg.setAcceptMode(QFileDialog::AcceptSave);
+    fDlg.setFileMode(QFileDialog::AnyFile);
+    fileName = fDlg.getSaveFileName(this, "Save File", "C:/" + fileName);
+    qDebug() << "fileName:" << fileName;
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    m_eHttpRequest = REQUEST_DOWNLOAD_FILE;
+    m_strDownLoadFilePath = fileName;
+
+    QNetworkRequest req(url);
+    QNetworkReply *downloadReply = m_pAccessManager->get(req);
+    connect(downloadReply, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(OnDownloadProgress(qint64, qint64)));
+}
+
+void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
     int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if(reply->error() == QNetworkReply::NoError && statusCode == 200) {
-        qDebug() << "上传成功";
-        m_pProgressDialog->hide();
-        emit uploadFileSuccess(m_strUploadFilePath);
-        m_strUploadFilePath.clear();
+        if (m_eHttpRequest == REQUEST_UPLOAD_FILE) {
+            qDebug() << "上传成功";
+            m_pProgressDialog->hide();
+            emit uploadFileSuccess(m_strUploadFilePath);
+            m_strUploadFilePath.clear();
+        } else if (m_eHttpRequest == REQUEST_DOWNLOAD_FILE) {
+            if (m_strDownLoadFilePath.isEmpty()) {
+                return;
+            }
+            QFile file(m_strDownLoadFilePath);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                file.write(reply->readAll());
+            }
+            file.close();
+            qDebug() << "下载完成";
+            m_pProgressDialog->hide();
+            QMessageBox box;
+            box.setWindowTitle("提示");
+            box.addButton("确认", QMessageBox::AcceptRole);
+            box.setText(QString("文件下载完成,保存至:%1").arg(m_strDownLoadFilePath));
+            box.exec();
+            m_strDownLoadFilePath.clear();
+        }
     } else {
         QString msg = "网络异常,请检查网络连接或服务是否正常.";
         qDebug() << msg << " error:" << reply->error();
@@ -151,7 +197,14 @@ void MainWindow::upLoadError(QNetworkReply::NetworkError err) {
 }
 
 void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
-    qDebug() << "recved:" << recved << " total:" << total;
+    if (nullptr == m_pProgressDialog) {
+        m_pProgressDialog = new ProgressDialog();
+    }
+
+    m_pProgressDialog->SetProgress(recved, total);
+}
+
+void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     if (nullptr == m_pProgressDialog) {
         m_pProgressDialog = new ProgressDialog();
     }

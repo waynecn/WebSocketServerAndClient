@@ -21,6 +21,7 @@ SOURCES += \
     logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
+    mytextbrowser.cpp \
     progressdialog.cpp \
     registerdlg.cpp \
     settingdlg.cpp
@@ -30,6 +31,7 @@ HEADERS += \
     common.h \
     logindialog.h \
     mainwindow.h \
+    mytextbrowser.h \
     progressdialog.h \
     registerdlg.h \
     settingdlg.h

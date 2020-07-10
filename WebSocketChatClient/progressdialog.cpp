@@ -6,6 +6,8 @@ ProgressDialog::ProgressDialog(QWidget *parent) :
     ui(new Ui::ProgressDialog)
 {
     ui->setupUi(this);
+
+    setWindowFlags(windowFlags() & Qt::WindowCloseButtonHint);
 }
 
 ProgressDialog::~ProgressDialog()

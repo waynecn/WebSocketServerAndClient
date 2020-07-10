@@ -39,13 +39,16 @@ private slots:
     void OnWebSocketError(QAbstractSocket::SocketError err);
     void OnNewMessageArrived();
     void OnUploadFile(QString filePath);
-    void uploadFileFinished(QNetworkReply *reply);
+    void OnAnchorClicked(const QUrl &url);
+    void OnNetworkReplyFinished(QNetworkReply *reply);
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);
+    void OnDownloadProgress(qint64 recved, qint64 total);
 
 private:
     Ui::MainWindow          *ui;
 
+    HttpRequest             m_eHttpRequest;
     QString                 m_strWsUrl;
     QSettings               m_Settings;
     bool                    m_bCtrlPressed;
@@ -55,6 +58,7 @@ private:
     QNetworkReply           *m_pNetworkReply;
     ProgressDialog          *m_pProgressDialog;
     QString                 m_strUploadFilePath;
+    QString                 m_strDownLoadFilePath;
 
 signals:
     void webscketDisconnected();
