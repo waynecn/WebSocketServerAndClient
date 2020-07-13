@@ -80,6 +80,7 @@ void ChatWidget::SetSendBtnEnabled(bool b) {
 void ChatWidget::on_sendMsgPushButton_clicked()
 {
     QString msg = ui->inputTextEdit->toPlainText();
+    msg = msg.replace('\n', "<br />&nbsp;&nbsp;&nbsp;&nbsp;");
     int nCurIndex = ui->showMsgTabWidget->currentIndex();
     if (!msg.isEmpty() && nCurIndex == 0) {
         QJsonObject jsonObj;
@@ -136,7 +137,8 @@ void ChatWidget::on_sendMsgPushButton_clicked()
         if (m_strFileLink.isEmpty()) {
             m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.strTime);
         } else {
-            m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+            QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
+            m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
         }
         pEdit->setHtml(m_jMessages[m_vecUserIds[nCurIndex - 1]]);
         pEdit->moveCursor(QTextCursor::End);
@@ -195,7 +197,8 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                 if (msgInfo.fileLink.isEmpty()) {
                     m_jMessages["message"] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
                 } else {
-                    m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+                    QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
+                    m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
                 }
                 m_pTextBrowser->setHtml(m_jMessages["message"]);
                 m_pTextBrowser->moveCursor(QTextCursor::End);
@@ -259,7 +262,8 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                     if (msgInfo.fileLink.isEmpty()) {
                         m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
                     } else {
-                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+                        QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
+                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
                     }
                     pEdit->setHtml(m_jMessages[msgInfo.strUserId]);
                     pEdit->moveCursor(QTextCursor::End);
@@ -274,7 +278,8 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                     if (msgInfo.fileLink.isEmpty()) {
                         m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
                     } else {
-                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+                        QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
+                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
                     }
                     pEdit->setHtml(m_jMessages[msgInfo.strUserId]);
                     pEdit->moveCursor(QTextCursor::End);
@@ -355,7 +360,7 @@ void ChatWidget::OnTabCloseRequested(int index) {
 
 void ChatWidget::OnCurrentChanged(int index) {
     if (0 == index) {
-        ui->uploadFilePushButton->setDisabled(true);
+        ui->uploadFilePushButton->setEnabled(true);
     } else {
         ui->uploadFilePushButton->setEnabled(true);
     }
@@ -427,10 +432,10 @@ void ChatWidget::OnUploadFileSuccess(QString filePath) {
 
     MyTextBrowser *pEdit = (MyTextBrowser *)ui->showMsgTabWidget->widget(nCurIndex);
     if (nCurIndex != 0) {
-        m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+        m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
         pEdit->setText(m_jMessages[m_vecUserIds[nCurIndex - 1]]);
     } else {
-        m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(msgInfo.fileLink).arg(msgInfo.strTime);
+        m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
         pEdit->setText(m_jMessages["message"]);
     }
     pEdit->moveCursor(QTextCursor::End);
