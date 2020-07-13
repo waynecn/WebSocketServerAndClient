@@ -201,12 +201,20 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
         m_pProgressDialog = new ProgressDialog();
     }
 
+    if (m_pProgressDialog->isHidden()) {
+        m_pProgressDialog->show();
+    }
+
     m_pProgressDialog->SetProgress(recved, total);
 }
 
 void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     if (nullptr == m_pProgressDialog) {
         m_pProgressDialog = new ProgressDialog();
+    }
+
+    if (m_pProgressDialog->isHidden()) {
+        m_pProgressDialog->show();
     }
 
     m_pProgressDialog->SetProgress(recved, total);
