@@ -92,14 +92,13 @@ void SettingDlg::on_okBtn_clicked()
         box.addButton("确定", QMessageBox::AcceptRole);
         box.exec();
         bExit = true;
-
-
     }
 
     setting.setValue(WEBSOCKET_SERVER_HOST, ip);
     setting.setValue(WEBSOCKET_SERVER_PORT, port);
     accept();
     if (bExit) {
+        emit restartApp();
         exit(-1);
     }
 }

@@ -231,6 +231,7 @@ void MainWindow::OnRestartApp() {
     QMessageBox::warning(this, "提示", "配置已变更，即将重启客户端");
     close();
 
-    QString exeFile = APPLICATION_DIR + "/WebSocketClient.exe";
+    QString exeFile = APPLICATION_DIR + "/WebSocketChatClient.exe";
+    qDebug() << "exeFile:" << exeFile;
     QProcess::startDetached(exeFile, QStringList());
 }
