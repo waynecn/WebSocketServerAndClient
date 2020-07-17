@@ -4,6 +4,7 @@
 #include <QMessageBox>
 #include <QSettings>
 
+SettingDlg *SettingDlg::m_pInstance = nullptr;
 SettingDlg::SettingDlg(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SettingDlg)
@@ -74,6 +75,7 @@ void SettingDlg::on_okBtn_clicked()
         box.setText(msg);
         box.addButton("确定", QMessageBox::AcceptRole);
         box.exec();
+        emit restartApp();
         return;
     }
 
@@ -90,6 +92,8 @@ void SettingDlg::on_okBtn_clicked()
         box.addButton("确定", QMessageBox::AcceptRole);
         box.exec();
         bExit = true;
+
+
     }
 
     setting.setValue(WEBSOCKET_SERVER_HOST, ip);

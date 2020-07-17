@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QSettings>
+#include <QCoreApplication>
 
 int main(int argc, char *argv[])
 {
@@ -12,12 +13,14 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationDomain("private.private.com");
     QCoreApplication::setApplicationName("websocketClient");
 
+    APPLICATION_DIR = QCoreApplication::applicationDirPath();
+
     QSettings settings;
     QString host = settings.value(WEBSOCKET_SERVER_HOST).toString();
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
     if (host.isEmpty() || port.isEmpty()) {
-        SettingDlg settingDlg;
-        settingDlg.exec();
+        SettingDlg *dlg = SettingDlg::GetInstance();
+        dlg->exec();
     }
 
     LoginDialog *loginDialog = new LoginDialog();

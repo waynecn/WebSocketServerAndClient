@@ -8,6 +8,7 @@
 #include <QMessageBox>
 #include <QHttpMultiPart>
 #include <QFileDialog>
+#include <QProcess>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -28,7 +29,9 @@ MainWindow::MainWindow(QWidget *parent)
     g_WebSocket.open(url);
 
     m_pAccessManager = new QNetworkAccessManager();
+    m_pSettingDlg = SettingDlg::GetInstance();
 
+    connect(m_pSettingDlg, SIGNAL(restartApp()), this, SLOT(OnRestartApp()));
     connect(&g_WebSocket, SIGNAL(connected()), this, SLOT(OnWebSocketConnected()));
     connect(&g_WebSocket, SIGNAL(disconnected()), this, SLOT(OnWebSocketDisconnected()));
     connect(&g_WebSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(OnWebSocketError(QAbstractSocket::SocketError)));
@@ -56,8 +59,8 @@ void MainWindow::keyPressEvent(QKeyEvent *e) {
         m_bCtrlPressed = true;
     }
     if (m_bCtrlPressed && e->key() == Qt::Key_E) {
-        SettingDlg dlg;
-        dlg.exec();
+        SettingDlg *dlg = SettingDlg::GetInstance();
+        dlg->exec();
     }
 }
 
@@ -140,7 +143,8 @@ void MainWindow::OnAnchorClicked(const QUrl &url) {
     QFileDialog fDlg;
     fDlg.setAcceptMode(QFileDialog::AcceptSave);
     fDlg.setFileMode(QFileDialog::AnyFile);
-    fileName = fDlg.getSaveFileName(this, "Save File", "C:/" + fileName);
+    QString saveFileDir = m_Settings.value("SAVE_FILE_DIR", "C:/").toString();
+    fileName = fDlg.getSaveFileName(this, "Save File", saveFileDir + fileName);
     qDebug() << "fileName:" << fileName;
     if (fileName.isEmpty()) {
         return;
@@ -148,6 +152,9 @@ void MainWindow::OnAnchorClicked(const QUrl &url) {
 
     m_eHttpRequest = REQUEST_DOWNLOAD_FILE;
     m_strDownLoadFilePath = fileName;
+    saveFileDir = m_strDownLoadFilePath.mid(0, m_strDownLoadFilePath.lastIndexOf("/") + 1);
+    qDebug() << "saveFileDir:" << saveFileDir;
+    m_Settings.setValue("SAVE_FILE_DIR", saveFileDir);
 
     QNetworkRequest req(url);
     QNetworkReply *downloadReply = m_pAccessManager->get(req);
@@ -218,4 +225,12 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     }
 
     m_pProgressDialog->SetProgress(recved, total);
+}
+
+void MainWindow::OnRestartApp() {
+    QMessageBox::warning(this, "提示", "配置已变更，即将重启客户端");
+    close();
+
+    QString exeFile = APPLICATION_DIR + "/WebSocketClient.exe";
+    QProcess::startDetached(exeFile, QStringList());
 }

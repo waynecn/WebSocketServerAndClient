@@ -51,8 +51,8 @@ void LoginDialog::keyPressEvent(QKeyEvent *e) {
         m_bCtrlPressed = true;
     }
     if (m_bCtrlPressed && e->key() == Qt::Key_E) {
-        SettingDlg dlg;
-        dlg.exec();
+        SettingDlg *dlg = SettingDlg::GetInstance();
+        dlg->exec();
     }
     if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
         on_loginBtn_clicked();

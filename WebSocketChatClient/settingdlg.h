@@ -14,8 +14,16 @@ class SettingDlg : public QDialog
     Q_OBJECT
 
 public:
-    explicit SettingDlg(QWidget *parent = nullptr);
+    static SettingDlg *GetInstance() {
+        if (m_pInstance == nullptr) {
+            m_pInstance = new SettingDlg();
+        }
+
+        return m_pInstance;
+    }
     ~SettingDlg();
+
+private:explicit SettingDlg(QWidget *parent = nullptr);
 
 private slots:
     void on_okBtn_clicked();
@@ -24,6 +32,10 @@ private slots:
 
 private:
     Ui::SettingDlg *ui;
+    static SettingDlg *m_pInstance;
+
+signals:
+    void restartApp();
 };
 
 #endif // SETTINGDLG_H

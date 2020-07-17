@@ -156,8 +156,8 @@ void ChatWidget::keyPressEvent(QKeyEvent *e) {
     }
 
     if (m_bCtrlPressed && e->key() == Qt::Key_E) {
-        SettingDlg dlg;
-        dlg.exec();
+        SettingDlg *dlg = SettingDlg::GetInstance();
+        dlg->exec();
     }
 }
 
@@ -382,14 +382,6 @@ void ChatWidget::OnUploadFilePushButtonClicked() {
     if (filePath.isEmpty()) {
         return;
     }
-    QFile file(filePath);
-    file.open(QIODevice::ReadOnly);
-    int fileLen = file.size();
-    QDataStream fileStream(&file);
-    char *buff = new char[fileLen];
-    memset(buff, 0, sizeof(char) * fileLen);
-    fileStream.readRawData(buff, fileLen);
-    file.close();
 
     filePath = filePath.replace("\\", "/");
 

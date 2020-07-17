@@ -4,6 +4,7 @@
 #include "common.h"
 #include "chatwidget.h"
 #include "progressdialog.h"
+#include "settingdlg.h"
 
 #include <QMainWindow>
 #include <QSplitter>
@@ -44,9 +45,11 @@ private slots:
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);
     void OnDownloadProgress(qint64 recved, qint64 total);
+    void OnRestartApp();
 
 private:
     Ui::MainWindow          *ui;
+    SettingDlg              *m_pSettingDlg;
 
     HttpRequest             m_eHttpRequest;
     QString                 m_strWsUrl;

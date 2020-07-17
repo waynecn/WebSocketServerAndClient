@@ -64,5 +64,6 @@ extern UserInfo g_stUserInfo;
 
 extern QWebSocket g_WebSocket;
 
+extern QString APPLICATION_DIR;
 
 #endif // COMMON_H
