@@ -75,7 +75,6 @@ void SettingDlg::on_okBtn_clicked()
         box.setText(msg);
         box.addButton("确定", QMessageBox::AcceptRole);
         box.exec();
-        emit restartApp();
         return;
     }
 
@@ -98,7 +97,7 @@ void SettingDlg::on_okBtn_clicked()
     setting.setValue(WEBSOCKET_SERVER_PORT, port);
     accept();
     if (bExit) {
-        emit restartApp();
+        RestartApp();
         exit(-1);
     }
 }

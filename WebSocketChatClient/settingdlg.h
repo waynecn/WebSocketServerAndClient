@@ -33,9 +33,6 @@ private slots:
 private:
     Ui::SettingDlg *ui;
     static SettingDlg *m_pInstance;
-
-signals:
-    void restartApp();
 };
 
 #endif // SETTINGDLG_H

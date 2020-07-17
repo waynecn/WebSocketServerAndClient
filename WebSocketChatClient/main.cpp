@@ -26,12 +26,11 @@ int main(int argc, char *argv[])
     LoginDialog *loginDialog = new LoginDialog();
     int nRet = loginDialog->exec();
     MainWindow w;
-    w.setWindowTitle(g_stUserInfo.strUserName);
     if (nRet == QDialog::Accepted) {
+        w.setWindowTitle(g_stUserInfo.strUserName);
         w.show();
     } else {
         delete loginDialog;
-        w.close();
         exit(-1);
     }
     delete loginDialog;

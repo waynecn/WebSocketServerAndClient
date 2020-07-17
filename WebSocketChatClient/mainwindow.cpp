@@ -31,7 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_pAccessManager = new QNetworkAccessManager();
     m_pSettingDlg = SettingDlg::GetInstance();
 
-    connect(m_pSettingDlg, SIGNAL(restartApp()), this, SLOT(OnRestartApp()));
+    //connect(m_pSettingDlg, SIGNAL(restartApp()), this, SLOT(OnRestartApp()));
     connect(&g_WebSocket, SIGNAL(connected()), this, SLOT(OnWebSocketConnected()));
     connect(&g_WebSocket, SIGNAL(disconnected()), this, SLOT(OnWebSocketDisconnected()));
     connect(&g_WebSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(OnWebSocketError(QAbstractSocket::SocketError)));
@@ -225,13 +225,4 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     }
 
     m_pProgressDialog->SetProgress(recved, total);
-}
-
-void MainWindow::OnRestartApp() {
-    QMessageBox::warning(this, "提示", "配置已变更，即将重启客户端");
-    close();
-
-    QString exeFile = APPLICATION_DIR + "/WebSocketChatClient.exe";
-    qDebug() << "exeFile:" << exeFile;
-    QProcess::startDetached(exeFile, QStringList());
 }

@@ -45,7 +45,6 @@ private slots:
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);
     void OnDownloadProgress(qint64 recved, qint64 total);
-    void OnRestartApp();
 
 private:
     Ui::MainWindow          *ui;

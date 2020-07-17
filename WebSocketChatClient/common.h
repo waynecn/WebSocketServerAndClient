@@ -4,6 +4,8 @@
 #include <QString>
 #include <QtWebSockets/QWebSocket>
 
+void RestartApp();
+
 const QString WEBSOCKET_SERVER_HOST = "WEBSOCKET_SERVER_HOST";
 const QString WEBSOCKET_SERVER_PORT = "WEBSOCKET_SERVER_PORT";
 const QString WEBSOCKET_USER_NAME = "WEBSOCKET_USER_NAME";
