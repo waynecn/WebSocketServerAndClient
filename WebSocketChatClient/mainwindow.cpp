@@ -13,6 +13,8 @@
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow),
+      m_pFile(nullptr),
+      m_pMultiPart(nullptr),
       m_pChatWidget(nullptr),
       m_pProgressDialog(nullptr)
 {
@@ -31,7 +33,6 @@ MainWindow::MainWindow(QWidget *parent)
     m_pAccessManager = new QNetworkAccessManager();
     m_pSettingDlg = SettingDlg::GetInstance();
 
-    //connect(m_pSettingDlg, SIGNAL(restartApp()), this, SLOT(OnRestartApp()));
     connect(&g_WebSocket, SIGNAL(connected()), this, SLOT(OnWebSocketConnected()));
     connect(&g_WebSocket, SIGNAL(disconnected()), this, SLOT(OnWebSocketDisconnected()));
     connect(&g_WebSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(OnWebSocketError(QAbstractSocket::SocketError)));
@@ -50,6 +51,7 @@ MainWindow::~MainWindow()
     }
 
     delete m_pChatWidget;
+    delete m_pAccessManager;
 
     delete ui;
 }
@@ -102,8 +104,8 @@ void MainWindow::OnNewMessageArrived() {
 
 void MainWindow::OnUploadFile(QString filePath) {
     m_strUploadFilePath = filePath;
-    QFile *file = new QFile(filePath);
-    file->open(QIODevice::ReadOnly);
+    m_pFile = new QFile(filePath);
+    m_pFile->open(QIODevice::ReadOnly);
 
     QString fileName = filePath.mid(filePath.lastIndexOf('/') + 1);
     QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
@@ -111,20 +113,19 @@ void MainWindow::OnUploadFile(QString filePath) {
     QString uploadUrl = "http://" + host + ":" + port + "/uploads";
     qDebug() << "uploadUrl:" << uploadUrl;
 
-    QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+    m_pMultiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
 
     QHttpPart filePart;
     filePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("image/jpeg"));
     filePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"file\";filename=\"" + fileName + "\";")));
-    filePart.setBodyDevice(file);
-    file->setParent(multiPart);
+    filePart.setBodyDevice(m_pFile);
 
-    multiPart->append(filePart);
+    m_pMultiPart->append(filePart);
 
     m_eHttpRequest = REQUEST_UPLOAD_FILE;
     QUrl url(uploadUrl);
     QNetworkRequest req(url);
-    m_pNetworkReply = m_pAccessManager->post(req, multiPart);
+    m_pNetworkReply = m_pAccessManager->post(req, m_pMultiPart);
     connect(m_pNetworkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(upLoadError(QNetworkReply::NetworkError)));
     connect(m_pNetworkReply, SIGNAL(uploadProgress(qint64, qint64 )), this, SLOT(OnUploadProgress(qint64, qint64 )));
     if (nullptr == m_pProgressDialog) {
@@ -169,6 +170,11 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             m_pProgressDialog->hide();
             emit uploadFileSuccess(m_strUploadFilePath);
             m_strUploadFilePath.clear();
+            m_pFile->close();
+            delete m_pFile;
+            m_pFile = nullptr;
+            delete m_pMultiPart;
+            m_pMultiPart = nullptr;
         } else if (m_eHttpRequest == REQUEST_DOWNLOAD_FILE) {
             if (m_strDownLoadFilePath.isEmpty()) {
                 return;

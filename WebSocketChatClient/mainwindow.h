@@ -55,6 +55,8 @@ private:
     QSettings               m_Settings;
     bool                    m_bCtrlPressed;
 
+    QFile                   *m_pFile;
+    QHttpMultiPart          *m_pMultiPart;
     ChatWidget              *m_pChatWidget;
     QNetworkAccessManager   *m_pAccessManager;
     QNetworkReply           *m_pNetworkReply;
