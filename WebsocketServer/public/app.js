@@ -15,10 +15,16 @@ new Vue({
         this.ws.addEventListener('message', function(e) {
             console.log("message:", e);
             var msg = JSON.parse(e.data);
-            self.chatContent += '<div class="chip">'
-                    + msg.username
-                + '</div>'
-                + emojione.toImage(msg.message) + '<br/>' + '<div class="time">' + self.getCurrentTime() + '</div>'; // Parse emojis
+            msg = msg.message;
+            if (msg.filelink == "") {
+                self.chatContent += '<div class="chip">' + msg.username + '</div>'
+                    + emojione.toImage(msg.message) + '<br/>' + '<div class="time" style="color:gray">' + self.getCurrentTime() + '</div>';
+            } else {
+                self.chatContent += '<div class="chip">'
+                        + msg.username + '</div>' 
+                    + emojione.toImage(msg.message) + '<br/>' + '&nbsp;&nbsp;&nbsp;&nbsp;<a href=' + msg.filelink + '>' 
+                    + msg.filelink + '</a>' + '<div class="time" style="color:gray">' + self.getCurrentTime() + '</div>';
+            }
 
             var element = document.getElementById('chat-messages');
             element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
