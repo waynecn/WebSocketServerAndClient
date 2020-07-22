@@ -8,6 +8,8 @@ QWebSocket g_WebSocket;
 
 QString APPLICATION_DIR = "";
 
+QString APPLICATION_IMAGE_DIR = "";
+
 void RestartApp() {
     QString exeFile = APPLICATION_DIR + "/EasyChat.exe";
     qDebug() << "exeFile:" << exeFile;

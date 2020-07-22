@@ -25,6 +25,11 @@ int main(int argc, char *argv[])
 
     LoginDialog *loginDialog = new LoginDialog();
     int nRet = loginDialog->exec();
+    if (nRet == QDialog::Accepted) {
+        APPLICATION_IMAGE_DIR = APPLICATION_DIR + "/images/" + g_stUserInfo.strUserId + "/";
+    } else {
+        APPLICATION_IMAGE_DIR = APPLICATION_DIR + "/images/";
+    }
     MainWindow w;
     if (nRet == QDialog::Accepted) {
         w.setWindowTitle(g_stUserInfo.strUserName);

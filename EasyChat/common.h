@@ -70,4 +70,6 @@ extern QWebSocket g_WebSocket;
 
 extern QString APPLICATION_DIR;
 
+extern QString APPLICATION_IMAGE_DIR;
+
 #endif // COMMON_H
