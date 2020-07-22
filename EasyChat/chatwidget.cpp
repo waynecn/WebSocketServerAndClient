@@ -20,6 +20,8 @@ ChatWidget::ChatWidget(QWidget *parent) :
     m_bIsMainWindow = true;
     ui->setupUi(this);
 
+    m_strImageDir = APPLICATION_DIR + "/images/";
+
     ui->uploadFilePushButton->setEnabled(true);
 
     m_pTextBrowser = new MyTextBrowser();
@@ -32,8 +34,14 @@ ChatWidget::ChatWidget(QWidget *parent) :
     m_pTextBrowser->setSizePolicy(policy);
     ui->inputTextEdit->setLineWrapMode(QTextEdit::WidgetWidth);
 
-    m_strContentTemplateWithoutLink = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%3)</a></p>";
-    m_strContentTemplateWithLink = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;<a>上传文件:</a><a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%5)</a></p>";
+    m_strContentTemplateWithoutLink = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a>&nbsp;&nbsp;&nbsp;&nbsp;\
+        <a style=\"color:gray\">(%3)</a></p>";
+    m_strContentTemplateWithLink = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;<a>%2</a> \
+        &nbsp;&nbsp;&nbsp;&nbsp;<a>上传文件:</a><a href=\"%3\">%4</a>&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%5)</a></p>";
+    m_strContentTemplateWithLinkWithImage = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;\
+        <a>%2</a><img src=\"%3\" />&nbsp;&nbsp;&nbsp;&nbsp;<a>上传文件:</a><a href=\"%4\">%5</a>&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%6)</a></p>";
+    m_strContentTemplateWithoutLinkWithImage = "<p><a style=\"color:blue\">%1:</a><br />&nbsp;&nbsp;&nbsp;&nbsp;\
+        <a>%2</a><img src=\"%3\" />&nbsp;&nbsp;&nbsp;&nbsp;<a style=\"color:gray\">(%4)</a></p>";;
 
     int nCount = ui->showMsgTabWidget->count();
     for (int i = 0; i < nCount; ++i) {
@@ -118,6 +126,10 @@ void ChatWidget::on_sendMsgPushButton_clicked()
         jsonObj["message"] = msg;
         jsonObj["time"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
         jsonObj["filelink"] = m_strFileLink;
+        QString fileName = m_strFileLink.mid(m_strFileLink.lastIndexOf('/') + 1);
+        if (isImage(fileName)) {
+            jsonObj["image"] = m_strFileLink;
+        }
         QJsonObject jsonMsg;
         jsonMsg[m_vecUserIds[nCurIndex - 1]] = jsonObj;
         QJsonDocument jsonDoc(jsonMsg);
@@ -131,14 +143,26 @@ void ChatWidget::on_sendMsgPushButton_clicked()
         msgInfo.strMsg = msg;
         msgInfo.strTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
         msgInfo.fileLink = m_strFileLink;
+        if (isImage(fileName)) {
+            msgInfo.strImage = m_strImageDir + fileName;
+        }
         m_vecMsgInfos.push_back(msgInfo);
 
         MyTextBrowser *pEdit = (MyTextBrowser *)ui->showMsgTabWidget->widget(nCurIndex);
         if (m_strFileLink.isEmpty()) {
-            m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.strTime);
+            if (msgInfo.strImage.isEmpty()) {
+                m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.strTime);
+            } else {
+                //m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithoutLinkWithImage.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.strImage).arg(msgInfo.strTime);
+                m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithoutLinkWithImage.arg(msgInfo.strUserName).arg(msg).arg("D:/rulerLeft.png").arg(msgInfo.strTime);
+            }
         } else {
-            QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
-            m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+            if (msgInfo.strImage.isEmpty()) {
+                m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+            } else {
+                //m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msg).arg(msgInfo.strImage).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msg).arg("D:/rulerLeft.png").arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+            }
         }
         pEdit->setHtml(m_jMessages[m_vecUserIds[nCurIndex - 1]]);
         pEdit->moveCursor(QTextCursor::End);
@@ -167,6 +191,18 @@ void ChatWidget::keyReleaseEvent(QKeyEvent *e) {
     }
 }
 
+bool ChatWidget::isImage(QString fileName) {
+    if (fileName.isEmpty()) {
+        return false;
+    }
+    if (fileName.indexOf(".jpg") != -1 || fileName.indexOf(".jpeg") != -1 || fileName.indexOf(".png") != -1 ||
+            fileName.indexOf(".JPG") != -1 || fileName.indexOf(".JPEG") != -1 || fileName.indexOf(".PNG") != -1) {
+        return true;
+    }
+
+    return false;
+}
+
 void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
     qDebug() << "receive msg:" << msg;
     if (msg.isEmpty()) {
@@ -191,15 +227,29 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                 msgInfo.strMsg = jsonMsg["message"].toString();
                 msgInfo.strTime = jsonMsg["time"].toString();
                 msgInfo.fileLink = jsonMsg["filelink"].toString();
+                msgInfo.strImage = jsonMsg["image"].toString();
+
+                emit downloadImage(msgInfo.strImage, APPLICATION_DIR + "/images/");
 
                 m_vecMsgInfos.push_back(msgInfo);
 
                 if (msgInfo.fileLink.isEmpty()) {
-                    m_jMessages["message"] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
+                    if (msgInfo.strImage.isEmpty()) {
+                        m_jMessages["message"] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
+                    } else {
+                        //m_jMessages["message"] += m_strContentTemplateWithoutLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.strTime);
+                        m_jMessages["message"] += m_strContentTemplateWithoutLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg("D:/rulerLeft.png").arg(msgInfo.strTime);
+                    }
                 } else {
                     QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
-                    m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                    if (msgInfo.strImage.isEmpty()) {
+                        m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                    } else {
+                        //m_jMessages["message"] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        m_jMessages["message"] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg("D:/rulerLeft.png").arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                    }
                 }
+                qDebug() << "message:.........." << m_jMessages["message"];
                 m_pTextBrowser->setHtml(m_jMessages["message"]);
                 m_pTextBrowser->moveCursor(QTextCursor::End);
                 emit newMessageArrived();
@@ -245,6 +295,7 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                 msgInfo.strMsg = jsonMsg["message"].toString();
                 msgInfo.strTime = jsonMsg["time"].toString();
                 msgInfo.fileLink = jsonMsg["filelink"].toString();
+                msgInfo.strImage = jsonMsg["image"].toString();
                 //查找是否有窗口存在
                 bool bExist = false;
                 int nIndex = 0;
@@ -260,10 +311,18 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                     MyTextBrowser *pEdit = new MyTextBrowser();
                     pEdit->setReadOnly(true);
                     if (msgInfo.fileLink.isEmpty()) {
-                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
+                        if (msgInfo.strImage.isEmpty()) {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
+                        } else {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.strTime);
+                        }
                     } else {
                         QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
-                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        if (msgInfo.strImage.isEmpty()) {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        } else {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        }
                     }
                     pEdit->setHtml(m_jMessages[msgInfo.strUserId]);
                     pEdit->moveCursor(QTextCursor::End);
@@ -276,10 +335,18 @@ void ChatWidget::OnWebSocketMsgReceived(const QString &msg) {
                     ui->showMsgTabWidget->setCurrentIndex(nIndex);
                     MyTextBrowser *pEdit = (MyTextBrowser *)ui->showMsgTabWidget->widget(nIndex);
                     if (msgInfo.fileLink.isEmpty()) {
-                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
+                        if (msgInfo.strImage.isEmpty()) {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strTime);
+                        } else {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithoutLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.strTime);
+                        }
                     } else {
                         QString fileName = msgInfo.fileLink.mid(msgInfo.fileLink.lastIndexOf('/') + 1);
-                        m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        if (msgInfo.strImage.isEmpty()) {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        } else {
+                            m_jMessages[msgInfo.strUserId] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+                        }
                     }
                     pEdit->setHtml(m_jMessages[msgInfo.strUserId]);
                     pEdit->moveCursor(QTextCursor::End);
@@ -403,6 +470,9 @@ void ChatWidget::OnUploadFileSuccess(QString filePath) {
     jsonObj["time"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
     m_strFileLink = "http://" + host + ":" + port + "/uploads/" + fileName;
     jsonObj["filelink"] = m_strFileLink;
+    if (isImage(fileName)) {
+        jsonObj["image"] = m_strFileLink;
+    }
     QJsonObject jsonMsg;
     if (nCurIndex != 0) {
         jsonMsg[m_vecUserIds[nCurIndex - 1]] = jsonObj;
@@ -420,16 +490,37 @@ void ChatWidget::OnUploadFileSuccess(QString filePath) {
     msgInfo.strMsg = msg;
     msgInfo.strTime = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
     msgInfo.fileLink = m_strFileLink;
+    if (isImage(fileName)) {
+        msgInfo.strImage = m_strFileLink;
+    }
     m_vecMsgInfos.push_back(msgInfo);
 
     MyTextBrowser *pEdit = (MyTextBrowser *)ui->showMsgTabWidget->widget(nCurIndex);
     if (nCurIndex != 0) {
-        m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
-        pEdit->setText(m_jMessages[m_vecUserIds[nCurIndex - 1]]);
+        if (msgInfo.strImage.isEmpty()) {
+            m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+        } else {
+            //m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+            m_jMessages[m_vecUserIds[nCurIndex - 1]] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg("D:/rulerLeft.png").arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+        }
+        pEdit->setHtml(m_jMessages[m_vecUserIds[nCurIndex - 1]]);
     } else {
-        m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
-        pEdit->setText(m_jMessages["message"]);
+        if (msgInfo.strImage.isEmpty()) {
+            m_jMessages["message"] += m_strContentTemplateWithLink.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+        } else {
+            //m_jMessages["message"] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg(msgInfo.strImage).arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+            m_jMessages["message"] += m_strContentTemplateWithLinkWithImage.arg(msgInfo.strUserName).arg(msgInfo.strMsg).arg("D:/rulerLeft.png").arg(msgInfo.fileLink).arg(fileName).arg(msgInfo.strTime);
+        }
+        qDebug() << ".......message:" << m_jMessages["message"];
+        pEdit->setHtml(m_jMessages["message"]);
     }
     pEdit->moveCursor(QTextCursor::End);
     m_strFileLink.clear();
+}
+
+void ChatWidget::OnImageDownloadFinished() {
+    for (int i = 0; i < ui->showMsgTabWidget->count(); ++i) {
+        MyTextBrowser *pEdit = (MyTextBrowser *)ui->showMsgTabWidget->widget(i);
+        pEdit->reload();
+    }
 }

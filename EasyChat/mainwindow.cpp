@@ -39,7 +39,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_pChatWidget, SIGNAL(newMessageArrived()), this, SLOT(OnNewMessageArrived()));
     connect(m_pChatWidget, SIGNAL(uploadFile(QString)), this, SLOT(OnUploadFile(QString)));
     connect(m_pChatWidget, SIGNAL(anchorClicked(const QUrl &)), this, SLOT(OnAnchorClicked(const QUrl &)));
+    connect(m_pChatWidget, SIGNAL(downloadImage(QString, QString)), this, SLOT(OnDownloadImage(QString, QString)));
     connect(this, SIGNAL(uploadFileSuccess(QString)), m_pChatWidget, SLOT(OnUploadFileSuccess(QString)));
+    connect(this, SIGNAL(imageDownloadFinished()), m_pChatWidget, SLOT(OnImageDownloadFinished()));
     connect(m_pAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(OnNetworkReplyFinished(QNetworkReply*)));
 }
 
@@ -162,6 +164,18 @@ void MainWindow::OnAnchorClicked(const QUrl &url) {
     connect(downloadReply, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(OnDownloadProgress(qint64, qint64)));
 }
 
+void MainWindow::OnDownloadImage(QString strUrl, QString saveDir) {
+    m_strDownLoadImageFile.clear();
+    QString fileName = strUrl.mid(strUrl.lastIndexOf('/') + 1);
+
+    m_eHttpRequest = REQUEST_DOWNLOAD_IMAGE;
+    m_strDownLoadImageFile = saveDir + "/" + fileName;
+
+    QUrl url(strUrl);
+    QNetworkRequest req(url);
+    QNetworkReply *downloadReply = m_pAccessManager->get(req);
+}
+
 void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
     int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if(reply->error() == QNetworkReply::NoError && statusCode == 200) {
@@ -192,6 +206,17 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             box.setText(QString("文件下载完成,保存至:%1").arg(m_strDownLoadFilePath));
             box.exec();
             m_strDownLoadFilePath.clear();
+        } else if (m_eHttpRequest == REQUEST_DOWNLOAD_IMAGE) {
+            if (m_strDownLoadImageFile.isEmpty()) {
+                return;
+            }
+            QFile file(m_strDownLoadImageFile);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                file.write(reply->readAll());
+            }
+            file.close();
+            m_strDownLoadImageFile.clear();
+            emit imageDownloadFinished();
         }
     } else {
         QString msg = "网络异常,请检查网络连接或服务是否正常.";

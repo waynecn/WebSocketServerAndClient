@@ -27,13 +27,15 @@ typedef struct _msg_info {
     QString strMsg;
     QString strTime;
     QString fileLink;
+    QString strImage;
 } MsgInfo, *PMsgInfo;
 
 enum HttpRequest {
     REQUEST_LOGIN,
     REQUEST_REGISTER,
     REQUEST_UPLOAD_FILE,
-    REQUEST_DOWNLOAD_FILE
+    REQUEST_DOWNLOAD_FILE,
+    REQUEST_DOWNLOAD_IMAGE
 };
 
 const QString WEBSOCKET_ERROR_STRINGS[24] = {

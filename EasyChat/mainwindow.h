@@ -41,6 +41,7 @@ private slots:
     void OnNewMessageArrived();
     void OnUploadFile(QString filePath);
     void OnAnchorClicked(const QUrl &url);
+    void OnDownloadImage(QString strUrl, QString saveDir);
     void OnNetworkReplyFinished(QNetworkReply *reply);
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);
@@ -63,10 +64,12 @@ private:
     ProgressDialog          *m_pProgressDialog;
     QString                 m_strUploadFilePath;
     QString                 m_strDownLoadFilePath;
+    QString                 m_strDownLoadImageFile;
 
 signals:
     void webscketDisconnected();
     void websocketConnected();
     void uploadFileSuccess(QString filePath);
+    void imageDownloadFinished();
 };
 #endif // MAINWINDOW_H
