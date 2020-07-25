@@ -22,6 +22,8 @@ SettingDlg::SettingDlg(QWidget *parent) :
     if (!port.isEmpty()) {
         ui->portLineEdit->setText(port);
     }
+
+    ui->versionLabel->setText("当前版本：" + APPLICATION_VERSION);
 }
 
 SettingDlg::~SettingDlg()

@@ -166,13 +166,10 @@ void MainWindow::OnAnchorClicked(const QUrl &url) {
 
 void MainWindow::OnDownloadImage(QString strUrl, QString saveDir) {
     m_strDownLoadImageFile.clear();
-    qDebug() << "strUrl:" << strUrl;
     QString fileName = strUrl.mid(strUrl.lastIndexOf('/') + 1);
 
     m_eHttpRequest = REQUEST_DOWNLOAD_IMAGE;
     m_strDownLoadImageFile = saveDir + fileName;
-
-    qDebug() << "m_strDownLoadImageFile:" << m_strDownLoadImageFile;
 
     QUrl url(strUrl);
     QNetworkRequest req(url);

@@ -4,6 +4,8 @@
 #include <QString>
 #include <QtWebSockets/QWebSocket>
 
+const QString   APPLICATION_VERSION = "1.0.6";
+
 void RestartApp();
 
 const QString WEBSOCKET_SERVER_HOST = "WEBSOCKET_SERVER_HOST";
