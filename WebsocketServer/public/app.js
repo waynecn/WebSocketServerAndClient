@@ -37,9 +37,13 @@ new Vue({
             if (this.newMsg != '') {
                 this.ws.send(
                     JSON.stringify({
-                        username: this.username,
-                        message: $('<p>').html(this.newMsg).text(), // Strip out html
-                        time: curTime
+                        message: {
+                            userid: -1,
+                            filelink: "",
+                            username: 'web-' + this.username,
+                            message: $('<p>').html(this.newMsg).text(), // Strip out html
+                            time: curTime
+                        }
                     }
                 ));
                 this.newMsg = ''; // Reset newMsg
