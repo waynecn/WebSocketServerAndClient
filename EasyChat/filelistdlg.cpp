@@ -15,6 +15,7 @@ FileListDlg::FileListDlg(QWidget *parent) :
     ui->setupUi(this);
 
     ui->tableWidget->setColumnCount(3);
+    ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget->horizontalHeader()->setHorizontalScrollMode(QAbstractItemView::ScrollPerItem);
     QStringList headerLables;
     headerLables.push_back("序号");
