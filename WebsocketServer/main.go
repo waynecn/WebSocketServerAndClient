@@ -139,6 +139,7 @@ func main() {
 	http.HandleFunc("/uploads", uploadFunction)
 	http.HandleFunc("/login", loginFunction)
 	http.HandleFunc("/register", registerFunction)
+	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -159,6 +160,12 @@ type HttpResponse struct {
 	Msg string
 	Id int
 	Username string
+}
+
+type FilesResponse struct {
+	Success bool
+	Msg string
+	Files []string
 }
 
 func getCurrentDirectory() string {
@@ -270,6 +277,7 @@ func uploadFunction(w http.ResponseWriter, r *http.Request) {
 						continue
 					}
 					defer fo.Close()
+					defer recordToSql(fileName)
 					formValue, _ := ioutil.ReadAll(p)
 					fo.Write(formValue);
 				}
@@ -550,4 +558,89 @@ func handleMessages() {
 			}
 		}
 	}
+}
+
+func recordToSql(fileName string) bool {
+	strSql := "insert chat_upload_files (file_name) values (?);"
+	stmt, err := g_Db.Prepare(strSql)
+	msg := "Prepare sql failed in recordToSql"
+	if err != nil {
+		log.Println(msg)
+		return false
+	}
+	
+	res, err := stmt.Exec(fileName)
+	if err != nil {
+		log.Println("insert into sql failed in recordToSql")
+		return false
+	}
+
+	newId, err := res.LastInsertId()
+	if err != nil {
+		log.Println("Get last inserted id failed in recordToSql")
+		return false
+	}
+	log.Println("new Inserted id:", newId)
+	return true
+}
+
+func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
+	tokens := r.Header["Token"]
+	if tokens == nil {
+		res := HttpResponse{false, "need token", -1, ""}
+		ret, err := json.Marshal(res)
+		if err != nil {
+			log.Println("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+		io.WriteString(w, string(ret))
+		return
+	}
+	token := tokens[0]
+	log.Println("token:", token)
+	if token != "20200101" {
+		res := HttpResponse{false, "Token verify failed.", -1, ""}
+		_, err := json.Marshal(res)
+		if err != nil {
+			log.Println("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+	}
+
+	//check the new user exists or not
+	strSql := "select file_name from chat_upload_files;"
+	stmt, err := g_Db.Prepare(strSql)
+	msg := "Prepare sql failed 1."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	rows, err := stmt.Query()
+	msg = "Query sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer rows.Close()
+
+	var fileName string
+	var files []string
+	for rows.Next() {
+		err := rows.Scan(&fileName)
+		msg = "Failed to get sql item."
+		if !checkErr(err, msg, w) {
+			return
+		}
+		files = append(files, fileName)
+	}
+
+	response := FilesResponse{true, "success", files}
+	bts, err := json.Marshal(response)
+	if err != nil {
+		log.Println("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
+		return
+	}
+	io.WriteString(w, string(bts))
 }

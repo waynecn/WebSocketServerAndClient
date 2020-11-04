@@ -26,5 +26,5 @@ WebsocketServer/WebsocketServer*
 WebsocketServer/public/uploads/*
 
 WebSocketChatClient.pro.user
-EasyChat.pro.user
+EasyChat.pro.*
 config.json
