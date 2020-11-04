@@ -28,3 +28,4 @@ WebsocketServer/public/uploads/*
 WebSocketChatClient.pro.user
 EasyChat.pro.*
 config.json
+build-EasyChat*

@@ -40,8 +40,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_pChatWidget, SIGNAL(uploadFile(QString)), this, SLOT(OnUploadFile(QString)));
     connect(m_pChatWidget, SIGNAL(anchorClicked(const QUrl &)), this, SLOT(OnAnchorClicked(const QUrl &)));
     connect(m_pChatWidget, SIGNAL(downloadImage(QString, QString)), this, SLOT(OnDownloadImage(QString, QString)));
+    connect(m_pChatWidget, SIGNAL(queryUploadFiles()), this, SLOT(OnGetUploadFiles()));
+    connect(m_pChatWidget, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)), this, SLOT(OnTableWidgetItemClicked(QTableWidgetItem *)));
     connect(this, SIGNAL(uploadFileSuccess(QString)), m_pChatWidget, SLOT(OnUploadFileSuccess(QString)));
     connect(this, SIGNAL(imageDownloadFinished()), m_pChatWidget, SLOT(OnImageDownloadFinished()));
+    connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pChatWidget, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
     connect(m_pAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(OnNetworkReplyFinished(QNetworkReply*)));
 }
 
@@ -173,7 +176,30 @@ void MainWindow::OnDownloadImage(QString strUrl, QString saveDir) {
 
     QUrl url(strUrl);
     QNetworkRequest req(url);
-    QNetworkReply *downloadReply = m_pAccessManager->get(req);
+    m_pAccessManager->get(req);
+}
+
+void MainWindow::OnGetUploadFiles() {
+    m_eHttpRequest = REQUEST_GET_UPLOAD_FILES;
+
+    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
+    QString fileListUrl = "http://" + host + ":" + port + "/uploadfiles";
+    QUrl url(fileListUrl);
+    QNetworkRequest req(url);
+    req.setRawHeader("token", "20200101");
+    m_pAccessManager->get(req);
+}
+
+void MainWindow::OnTableWidgetItemClicked(QTableWidgetItem *item) {
+    QString fileName = item->text();
+    qDebug() << "ready to download file:" << fileName;
+
+    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
+    QString fileUrl = "http://" + host + ":" + port + "/uploads/" + fileName;
+    QUrl url(fileUrl);
+    OnAnchorClicked(url);
 }
 
 void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
@@ -218,6 +244,35 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             qDebug() << "图片下载完成:" << m_strDownLoadImageFile;
             m_strDownLoadImageFile.clear();
             emit imageDownloadFinished();
+        } else if (m_eHttpRequest == REQUEST_GET_UPLOAD_FILES) {
+            QByteArray baData = reply->readAll();
+            QJsonParseError jsonErr;
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(baData, &jsonErr);
+            if (jsonErr.error != QJsonParseError::NoError) {
+                QString msg = "解析响应数据发生错误";
+                qDebug() << msg;
+                QMessageBox box;
+                box.setWindowTitle("EasyChat");
+                box.setText(msg);
+                box.addButton("确定", QMessageBox::AcceptRole);
+                box.exec();
+                reply->deleteLater();
+                return;
+            }
+            bool bRet = jsonDoc["Success"].toBool();
+            if (!bRet) {
+                QString msg = "解析响应数据发生错误";
+                qDebug() << msg;
+                QMessageBox box;
+                box.setWindowTitle("EasyChat");
+                box.setText(msg);
+                box.addButton("确定", QMessageBox::AcceptRole);
+                box.exec();
+                reply->deleteLater();
+                return;
+            }
+            QJsonArray files = jsonDoc["Files"].toArray();
+            emit queryUploadFilesSuccess(files);
         }
     } else {
         QString msg = "网络异常,请检查网络连接或服务是否正常.";

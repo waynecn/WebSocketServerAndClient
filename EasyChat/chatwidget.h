@@ -3,12 +3,14 @@
 
 #include "common.h"
 #include "mytextbrowser.h"
+#include "filelistdlg.h"
 
 #include <QWidget>
 #include <QtWebSockets/QWebSocket>
 #include <QSplitter>
 #include <QTableWidgetItem>
 #include <QKeyEvent>
+#include <QJsonArray>
 
 namespace Ui {
 class ChatWidget;
@@ -30,6 +32,7 @@ public:
 public slots:
     void OnUploadFileSuccess(QString filePath);
     void OnImageDownloadFinished();
+    void OnQueryUploadFilesSuccess(QJsonArray &files);
 
 private slots:
     void on_sendMsgPushButton_clicked();
@@ -39,10 +42,13 @@ private slots:
     void OnCurrentChanged(int index);
     void OnUploadFilePushButtonClicked();
 
+    void on_fileListPushButton_clicked();
+
 private:
     Ui::ChatWidget *ui;
 
     MyTextBrowser       *m_pTextBrowser;
+    FileListDlg         *m_pFileListDlg;
 
     bool                m_bCtrlPressed;
     QVector<MsgInfo>    m_vecMsgInfos;
@@ -64,6 +70,9 @@ signals:
     void uploadFile(QString filePath);
     void anchorClicked(const QUrl &url);
     void downloadImage(QString strUrl, QString saveDir);
+    void queryUploadFiles();
+    void queryUploadFilesSuccess(QJsonArray &files);
+    void tableWidgetItemClicked(QTableWidgetItem *item);
 };
 
 #endif // CHATWIDGET_H

@@ -18,6 +18,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     chatwidget.cpp \
     common.cpp \
+    filelistdlg.cpp \
     logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -29,6 +30,7 @@ SOURCES += \
 HEADERS += \
     chatwidget.h \
     common.h \
+    filelistdlg.h \
     logindialog.h \
     mainwindow.h \
     mytextbrowser.h \
@@ -38,6 +40,7 @@ HEADERS += \
 
 FORMS += \
     chatwidget.ui \
+    filelistdlg.ui \
     logindialog.ui \
     mainwindow.ui \
     progressdialog.ui \

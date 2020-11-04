@@ -17,6 +17,8 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QProgressDialog>
+#include <QJsonArray>
+#include <QTableWidgetItem>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -42,6 +44,8 @@ private slots:
     void OnUploadFile(QString filePath);
     void OnAnchorClicked(const QUrl &url);
     void OnDownloadImage(QString strUrl, QString saveDir);
+    void OnGetUploadFiles();
+    void OnTableWidgetItemClicked(QTableWidgetItem *item);
     void OnNetworkReplyFinished(QNetworkReply *reply);
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);
@@ -71,5 +75,6 @@ signals:
     void websocketConnected();
     void uploadFileSuccess(QString filePath);
     void imageDownloadFinished();
+    void queryUploadFilesSuccess(QJsonArray &files);
 };
 #endif // MAINWINDOW_H

@@ -16,7 +16,8 @@
 ChatWidget::ChatWidget(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::ChatWidget),
-    m_pTextBrowser(nullptr)
+    m_pTextBrowser(nullptr),
+    m_pFileListDlg(nullptr)
 {
     m_bIsMainWindow = true;
     ui->setupUi(this);
@@ -31,6 +32,7 @@ ChatWidget::ChatWidget(QWidget *parent) :
     ui->uploadFilePushButton->setEnabled(true);
 
     m_pTextBrowser = new MyTextBrowser();
+    m_pFileListDlg = new FileListDlg();
 
     m_pTextBrowser->setReadOnly(true);
     m_pTextBrowser->setLineWrapMode(QTextEdit::WidgetWidth);
@@ -79,6 +81,8 @@ ChatWidget::ChatWidget(QWidget *parent) :
     connect(ui->showMsgTabWidget, SIGNAL(currentChanged(int)), this, SLOT(OnCurrentChanged(int)));
     connect(ui->uploadFilePushButton, SIGNAL(clicked()), this, SLOT(OnUploadFilePushButtonClicked()));
     connect(m_pTextBrowser, SIGNAL(anchorClicked(const QUrl &)), this, SIGNAL(anchorClicked(const QUrl &)));
+    connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pFileListDlg, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
+    connect(m_pFileListDlg, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)), this, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)));
 }
 
 ChatWidget::~ChatWidget()
@@ -536,4 +540,23 @@ void ChatWidget::OnImageDownloadFinished() {
         pEdit->reload();
         pEdit->moveCursor(QTextCursor::End);
     }
+}
+
+void ChatWidget::OnQueryUploadFilesSuccess(QJsonArray &files) {
+    emit queryUploadFilesSuccess(files);
+}
+
+void ChatWidget::on_fileListPushButton_clicked()
+{
+    if (nullptr == m_pFileListDlg) {
+        m_pFileListDlg = new FileListDlg();
+    }
+
+    emit queryUploadFiles();
+    //请求服务获取文件列表
+    QSettings setting;
+    QString host = setting.value(WEBSOCKET_SERVER_HOST).toString();
+    QString port = setting.value(WEBSOCKET_SERVER_PORT).toString();
+    QString fileListUrl = "http://" + host + ":" + port + "/uploadfiles";
+    m_pFileListDlg->exec();
 }
