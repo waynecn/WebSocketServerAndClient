@@ -4,7 +4,7 @@
 #include <QJsonArray>
 #include <QTableWidgetItem>
 #include <QPushButton>
-
+#include <QDebug>
 
 FileListDlg::FileListDlg(QWidget *parent) :
     QDialog(parent),
@@ -33,10 +33,12 @@ FileListDlg::~FileListDlg()
 }
 
 void FileListDlg::OnQueryUploadFilesSuccess(QJsonArray &files) {
+    this->resize(this->size());
     int size = files.size();
     ui->tableWidget->setRowCount(size);
 
     for (int i = 0; i < size; ++i) {
+        qDebug() << "file:" << files[i].toString();
         QTableWidgetItem *item = new QTableWidgetItem(files[i].toString());
         ui->tableWidget->setItem(i, 0, new QTableWidgetItem(QString("%1").arg(i + 1)));
         ui->tableWidget->setItem(i, 1, item);

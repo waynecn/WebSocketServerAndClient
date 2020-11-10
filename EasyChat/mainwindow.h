@@ -20,6 +20,7 @@
 #include <QJsonArray>
 #include <QTableWidgetItem>
 #include <QPushButton>
+#include <QMessageBox>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -72,6 +73,7 @@ private:
     QString                 m_strDownLoadFilePath;
     QString                 m_strDownLoadImageFile;
     QPushButton             *m_pOpenFileDirPushBtn;
+    QMessageBox             *m_pMsgBox;
 
 signals:
     void webscketDisconnected();

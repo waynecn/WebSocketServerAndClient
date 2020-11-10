@@ -5,7 +5,6 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
-#include <QMessageBox>
 #include <QHttpMultiPart>
 #include <QFileDialog>
 #include <QProcess>
@@ -17,6 +16,7 @@ MainWindow::MainWindow(QWidget *parent)
       m_pMultiPart(nullptr),
       m_pChatWidget(nullptr),
       m_pProgressDialog(nullptr),
+      m_pMsgBox(nullptr),
       m_pOpenFileDirPushBtn(nullptr)
 {
     m_bCtrlPressed = false;
@@ -35,6 +35,10 @@ MainWindow::MainWindow(QWidget *parent)
     m_pSettingDlg = SettingDlg::GetInstance();
 
     m_pOpenFileDirPushBtn = new QPushButton("打开目录");
+    m_pMsgBox = new QMessageBox();
+    m_pMsgBox->setWindowTitle("提示");
+    m_pMsgBox->addButton(m_pOpenFileDirPushBtn, QMessageBox::AcceptRole);
+    m_pMsgBox->addButton("确认", QMessageBox::AcceptRole);
 
     connect(&g_WebSocket, SIGNAL(connected()), this, SLOT(OnWebSocketConnected()));
     connect(&g_WebSocket, SIGNAL(disconnected()), this, SLOT(OnWebSocketDisconnected()));
@@ -62,6 +66,7 @@ MainWindow::~MainWindow()
     delete m_pChatWidget;
     delete m_pAccessManager;
     delete m_pOpenFileDirPushBtn;
+    delete m_pMsgBox;
 
     delete ui;
 }
@@ -231,12 +236,8 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             file.close();
             qDebug() << "下载完成";
             m_pProgressDialog->hide();
-            QMessageBox box;
-            box.setWindowTitle("提示");
-            box.addButton(m_pOpenFileDirPushBtn, QMessageBox::YesRole);
-            box.addButton("确认", QMessageBox::AcceptRole);
-            box.setText(QString("文件下载完成,保存至:%1").arg(m_strDownLoadFilePath));
-            box.exec();
+            m_pMsgBox->setText(QString("文件下载完成,保存至:%1").arg(m_strDownLoadFilePath));
+            m_pMsgBox->exec();
             m_strDownLoadFilePath.clear();
         } else if (m_eHttpRequest == REQUEST_DOWNLOAD_IMAGE) {
             if (m_strDownLoadImageFile.isEmpty()) {
@@ -330,7 +331,6 @@ void MainWindow::OnOpenFileDirPushed(bool b) {
     }
     QString dir = m_strDownLoadFilePath.mid(0, index);
     dir = dir.replace('/', '\\');
-    qDebug() << "in OnOpenFileDirPushed dir:" << dir;
     QString cmd = "explorer " + dir;
     QProcess proc;
     proc.execute(cmd);
