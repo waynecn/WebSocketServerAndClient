@@ -88,6 +88,7 @@ ChatWidget::ChatWidget(QWidget *parent) :
 ChatWidget::~ChatWidget()
 {
     delete m_pTextBrowser;
+    delete m_pFileListDlg;
     delete ui;
 }
 

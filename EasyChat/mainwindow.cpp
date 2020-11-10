@@ -16,7 +16,8 @@ MainWindow::MainWindow(QWidget *parent)
       m_pFile(nullptr),
       m_pMultiPart(nullptr),
       m_pChatWidget(nullptr),
-      m_pProgressDialog(nullptr)
+      m_pProgressDialog(nullptr),
+      m_pOpenFileDirPushBtn(nullptr)
 {
     m_bCtrlPressed = false;
 
@@ -33,6 +34,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_pAccessManager = new QNetworkAccessManager();
     m_pSettingDlg = SettingDlg::GetInstance();
 
+    m_pOpenFileDirPushBtn = new QPushButton("打开目录");
+
     connect(&g_WebSocket, SIGNAL(connected()), this, SLOT(OnWebSocketConnected()));
     connect(&g_WebSocket, SIGNAL(disconnected()), this, SLOT(OnWebSocketDisconnected()));
     connect(&g_WebSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(OnWebSocketError(QAbstractSocket::SocketError)));
@@ -46,6 +49,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(this, SIGNAL(imageDownloadFinished()), m_pChatWidget, SLOT(OnImageDownloadFinished()));
     connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pChatWidget, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
     connect(m_pAccessManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(OnNetworkReplyFinished(QNetworkReply*)));
+    connect(m_pOpenFileDirPushBtn, SIGNAL(clicked(bool)), this, SLOT(OnOpenFileDirPushed(bool)));
 }
 
 MainWindow::~MainWindow()
@@ -57,6 +61,7 @@ MainWindow::~MainWindow()
 
     delete m_pChatWidget;
     delete m_pAccessManager;
+    delete m_pOpenFileDirPushBtn;
 
     delete ui;
 }
@@ -228,6 +233,7 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             m_pProgressDialog->hide();
             QMessageBox box;
             box.setWindowTitle("提示");
+            box.addButton(m_pOpenFileDirPushBtn, QMessageBox::YesRole);
             box.addButton("确认", QMessageBox::AcceptRole);
             box.setText(QString("文件下载完成,保存至:%1").arg(m_strDownLoadFilePath));
             box.exec();
@@ -312,4 +318,21 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     }
 
     m_pProgressDialog->SetProgress(recved, total);
+}
+
+void MainWindow::OnOpenFileDirPushed(bool b) {
+    int index = m_strDownLoadFilePath.lastIndexOf('\\');
+    if (index == -1) {
+        index = m_strDownLoadFilePath.lastIndexOf('/');
+    }
+    if (index == -1) {
+        return;
+    }
+    QString dir = m_strDownLoadFilePath.mid(0, index);
+    dir = dir.replace('/', '\\');
+    qDebug() << "in OnOpenFileDirPushed dir:" << dir;
+    QString cmd = "explorer " + dir;
+    QProcess proc;
+    proc.execute(cmd);
+    proc.close();
 }

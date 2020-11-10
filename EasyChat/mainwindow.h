@@ -19,6 +19,7 @@
 #include <QProgressDialog>
 #include <QJsonArray>
 #include <QTableWidgetItem>
+#include <QPushButton>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -50,6 +51,7 @@ private slots:
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);
     void OnDownloadProgress(qint64 recved, qint64 total);
+    void OnOpenFileDirPushed(bool b);
 
 private:
     Ui::MainWindow          *ui;
@@ -69,6 +71,7 @@ private:
     QString                 m_strUploadFilePath;
     QString                 m_strDownLoadFilePath;
     QString                 m_strDownLoadImageFile;
+    QPushButton             *m_pOpenFileDirPushBtn;
 
 signals:
     void webscketDisconnected();
