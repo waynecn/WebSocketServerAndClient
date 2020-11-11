@@ -610,7 +610,7 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check the new user exists or not
-	strSql := "select file_name from chat_upload_files;"
+	strSql := "select file_name from chat_upload_files order by create_time desc;"
 	stmt, err := g_Db.Prepare(strSql)
 	msg := "Prepare sql failed 1."
 	if !checkErr(err, msg, w) {
