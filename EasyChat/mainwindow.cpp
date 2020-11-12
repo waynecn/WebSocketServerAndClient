@@ -302,7 +302,7 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
         m_pProgressDialog = new ProgressDialog();
     }
 
-    if (m_pProgressDialog->isHidden()) {
+    if (m_pProgressDialog->isHidden() && recved < total) {
         m_pProgressDialog->exec();
     }
 
@@ -314,7 +314,7 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
         m_pProgressDialog = new ProgressDialog();
     }
 
-    if (m_pProgressDialog->isHidden()) {
+    if (m_pProgressDialog->isHidden() && recved < total) {
         m_pProgressDialog->exec();
     }
 
