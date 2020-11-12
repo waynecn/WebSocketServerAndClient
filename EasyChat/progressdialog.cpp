@@ -16,7 +16,7 @@ ProgressDialog::~ProgressDialog()
 }
 
 
-void ProgressDialog::SetProgress(int val, int total) {
+void ProgressDialog::SetProgress(qint64 val, qint64 total) {
     ui->progressBar->setMaximum(total);
     ui->progressBar->setValue(val);
     if (val >= total) {

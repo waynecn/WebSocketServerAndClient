@@ -15,7 +15,7 @@ public:
     explicit ProgressDialog(QWidget *parent = nullptr);
     ~ProgressDialog();
 
-    void SetProgress(int val, int total);
+    void SetProgress(qint64 val, qint64 total);
 
 private slots:
     void on_okPushButton_clicked();
