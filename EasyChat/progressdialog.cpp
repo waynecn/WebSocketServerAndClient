@@ -19,6 +19,9 @@ ProgressDialog::~ProgressDialog()
 void ProgressDialog::SetProgress(int val, int total) {
     ui->progressBar->setMaximum(total);
     ui->progressBar->setValue(val);
+    if (val >= total) {
+        accept();
+    }
 }
 
 void ProgressDialog::on_okPushButton_clicked()

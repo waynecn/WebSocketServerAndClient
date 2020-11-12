@@ -217,7 +217,7 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
     if(reply->error() == QNetworkReply::NoError && statusCode == 200) {
         if (m_eHttpRequest == REQUEST_UPLOAD_FILE) {
             qDebug() << "上传成功";
-            m_pProgressDialog->hide();
+            m_pProgressDialog->accept();
             emit uploadFileSuccess(m_strUploadFilePath);
             m_strUploadFilePath.clear();
             m_pFile->close();
@@ -235,7 +235,7 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             }
             file.close();
             qDebug() << "下载完成";
-            m_pProgressDialog->hide();
+            m_pProgressDialog->accept();
             m_pMsgBox->setText(QString("文件下载完成,保存至:%1").arg(m_strDownLoadFilePath));
             m_pMsgBox->exec();
             m_strDownLoadFilePath.clear();
