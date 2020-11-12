@@ -303,7 +303,7 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
     }
 
     if (m_pProgressDialog->isHidden()) {
-        m_pProgressDialog->show();
+        m_pProgressDialog->exec();
     }
 
     m_pProgressDialog->SetProgress(recved, total);
@@ -315,7 +315,7 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     }
 
     if (m_pProgressDialog->isHidden()) {
-        m_pProgressDialog->show();
+        m_pProgressDialog->exec();
     }
 
     m_pProgressDialog->SetProgress(recved, total);
@@ -329,9 +329,9 @@ void MainWindow::OnOpenFileDirPushed(bool b) {
     if (index == -1) {
         return;
     }
-    QString dir = m_strDownLoadFilePath.mid(0, index);
-    dir = dir.replace('/', '\\');
-    QString cmd = "explorer " + dir;
+    QString file = m_strDownLoadFilePath;
+    file = file.replace('/', '\\');
+    QString cmd = "explorer /e,/select," + file;
     QProcess proc;
     proc.execute(cmd);
     proc.close();
