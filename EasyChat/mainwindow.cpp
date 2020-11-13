@@ -132,7 +132,6 @@ void MainWindow::OnUploadFile(QString filePath) {
     m_pMultiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
 
     QHttpPart filePart;
-    filePart.setRawHeader("UserName", g_stUserInfo.strUserName.toLocal8Bit());
     filePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("image/jpeg"));
     filePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"file\";filename=\"" + fileName + "\";")));
     filePart.setBodyDevice(m_pFile);
@@ -142,7 +141,7 @@ void MainWindow::OnUploadFile(QString filePath) {
     m_eHttpRequest = REQUEST_UPLOAD_FILE;
     QUrl url(uploadUrl);
     QNetworkRequest req(url);
-    req.setRawHeader("UserName", g_stUserInfo.strUserName.toLocal8Bit());
+    req.setRawHeader("UserName", g_stUserInfo.strUserName.toUtf8());
     m_pNetworkReply = m_pAccessManager->post(req, m_pMultiPart);
     connect(m_pNetworkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(upLoadError(QNetworkReply::NetworkError)));
     connect(m_pNetworkReply, SIGNAL(uploadProgress(qint64, qint64 )), this, SLOT(OnUploadProgress(qint64, qint64 )));
