@@ -86,6 +86,31 @@ type OnlineUser struct {
 	Addr string
 }
 
+type FileInfo struct {
+	FileName string
+	FileSize int
+	UploadUser sql.NullString
+}
+
+type HttpResponse struct {
+	Success bool
+	Msg string
+	Id int
+	Username string
+}
+
+type FilesResponse struct {
+	Success bool
+	Msg string
+	Files []string
+}
+
+type FilesResponse2 struct {
+	Success bool
+	Msg string
+	Files []FileInfo
+}
+
 var g_sqlConfig SqlConfig
 var g_Db *sql.DB
 
@@ -137,9 +162,11 @@ func main() {
 
 	//http request response
 	http.HandleFunc("/uploads", uploadFunction)
+	http.HandleFunc("/uploads2", uploadFunction2)
 	http.HandleFunc("/login", loginFunction)
 	http.HandleFunc("/register", registerFunction)
 	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
+	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -153,19 +180,6 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
-}
-
-type HttpResponse struct {
-	Success bool
-	Msg string
-	Id int
-	Username string
-}
-
-type FilesResponse struct {
-	Success bool
-	Msg string
-	Files []string
 }
 
 func getCurrentDirectory() string {
@@ -278,6 +292,106 @@ func uploadFunction(w http.ResponseWriter, r *http.Request) {
 					}
 					defer fo.Close()
 					defer recordToSql(fileName)
+					formValue, _ := ioutil.ReadAll(p)
+					fo.Write(formValue);
+				}
+			}
+		}
+	}
+
+	log.Println("***********************************")
+
+	var bts = []byte("success");
+	w.Write(bts)
+}
+
+func uploadFunction2(w http.ResponseWriter, r *http.Request) {
+	if (r.Method != "POST") {
+		log.Println("invalid request")
+		io.WriteString(w, "invalid request")
+		return
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	contentLen := r.ContentLength
+	userName := r.Header.Get("UserName")
+	log.Println("contentType: ", contentType, " contentLen:", contentLen, " user:", userName)
+	mediatype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		log.Println("ParseMediaType error: ", err)
+		w.Write([]byte("ParseMediaType error"))
+		return
+	}
+	curDir := getCurrentDirectory()
+	log.Println("curDir:", curDir)
+	dir := curDir + "/public/uploads"
+	log.Println("mediatype: ", mediatype)
+	if mediatype == "multipart/form-data" {
+		log.Println("in multipart parsing...")
+		log.Println("r.MultipartForm:", r.MultipartForm)
+		if (r.MultipartForm != nil) {
+			for name, files := range r.MultipartForm.File {
+				log.Printf("req.MultipartForm.File,name=:", name, " files:", len(files))
+				if len(files) != 1 {
+					w.Write([]byte("too many files"))
+					return
+				}
+				if name == "" {
+					w.Write([]byte("is not FileData"))
+					return
+				}
+				for _, f := range files {
+					handle, err := f.Open()
+					if err != nil {
+						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
+						return
+					}
+		
+					path := dir + f.Filename
+					dst, _ := os.Create(path)
+					io.Copy(dst, handle)
+					dst.Close()
+					fmt.Printf("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
+		
+					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
+				}
+			}
+		} else {
+			reader, err := r.MultipartReader()
+			if err != nil {
+				panic(err)
+			}
+			for {
+				p, err := reader.NextPart()
+				if err == io.EOF {
+					log.Println("EOF break")
+					break;
+				}
+
+				if err != nil {
+					log.Println("reader.NextPart error!", err)
+					break;
+				}
+
+				fileName := p.FileName()
+				log.Println("fileName:", fileName)
+				if fileName != "" {
+					_, err = os.Stat(dir)
+					if err != nil && os.IsNotExist(err) {
+						//目录不存在
+						err = os.MkdirAll(dir, 0777)
+						if err != nil {
+							log.Println("create dir failed:", err)
+							continue
+						}
+					}
+					fo, err := os.Create(dir + "/" + fileName)
+					if err != nil {
+						log.Println("os create file err: ", err)
+						continue
+					}
+					defer fo.Close()
+					defer recordToSql2(fileName, userName, contentLen)
 					formValue, _ := ioutil.ReadAll(p)
 					fo.Write(formValue);
 				}
@@ -584,6 +698,30 @@ func recordToSql(fileName string) bool {
 	return true
 }
 
+func recordToSql2(fileName string, userName string, fileSize int64) bool {
+	strSql := "insert chat_upload_files (file_name, upload_user, file_size) values (?, ?, ?);"
+	stmt, err := g_Db.Prepare(strSql)
+	msg := "Prepare sql failed in recordToSql"
+	if err != nil {
+		log.Println(msg)
+		return false
+	}
+	
+	res, err := stmt.Exec(fileName, userName, fileSize)
+	if err != nil {
+		log.Println("insert into sql failed in recordToSql")
+		return false
+	}
+
+	newId, err := res.LastInsertId()
+	if err != nil {
+		log.Println("Get last inserted id failed in recordToSql")
+		return false
+	}
+	log.Println("new Inserted id:", newId)
+	return true
+}
+
 func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 	tokens := r.Header["Token"]
 	if tokens == nil {
@@ -636,6 +774,73 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := FilesResponse{true, "success", files}
+	bts, err := json.Marshal(response)
+	if err != nil {
+		log.Println("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
+		return
+	}
+	io.WriteString(w, string(bts))
+}
+
+func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
+	tokens := r.Header["Token"]
+	if tokens == nil {
+		res := HttpResponse{false, "need token", -1, ""}
+		ret, err := json.Marshal(res)
+		if err != nil {
+			log.Println("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+		io.WriteString(w, string(ret))
+		return
+	}
+	token := tokens[0]
+	log.Println("token:", token)
+	if token != "20200101" {
+		res := HttpResponse{false, "Token verify failed.", -1, ""}
+		_, err := json.Marshal(res)
+		if err != nil {
+			log.Println("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+	}
+
+	//check the new user exists or not
+	strSql := "select file_name,file_size,upload_user from chat_upload_files order by create_time desc;"
+	stmt, err := g_Db.Prepare(strSql)
+	msg := "Prepare sql failed 1."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	rows, err := stmt.Query()
+	msg = "Query sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer rows.Close()
+
+	var fileName string
+	var fileSize int
+	var uploadUser sql.NullString
+	var files []FileInfo
+	for rows.Next() {
+		err := rows.Scan(&fileName, &fileSize, &uploadUser)
+		msg = "Failed to get sql item."
+		if !checkErr(err, msg, w) {
+			return
+		}
+		var fileInfo FileInfo
+		fileInfo.FileName = fileName
+		fileInfo.FileSize = fileSize
+		fileInfo.UploadUser = uploadUser
+		files = append(files, fileInfo)
+	}
+
+	response := FilesResponse2{true, "success", files}
 	bts, err := json.Marshal(response)
 	if err != nil {
 		log.Println("json marshal failed.")

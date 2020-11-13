@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "settingdlg.h"
+#include "common.h"
 
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -125,12 +126,13 @@ void MainWindow::OnUploadFile(QString filePath) {
     QString fileName = filePath.mid(filePath.lastIndexOf('/') + 1);
     QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
-    QString uploadUrl = "http://" + host + ":" + port + "/uploads";
+    QString uploadUrl = "http://" + host + ":" + port + "/uploads2";
     qDebug() << "uploadUrl:" << uploadUrl;
 
     m_pMultiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
 
     QHttpPart filePart;
+    filePart.setRawHeader("UserName", g_stUserInfo.strUserName.toLocal8Bit());
     filePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("image/jpeg"));
     filePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"file\";filename=\"" + fileName + "\";")));
     filePart.setBodyDevice(m_pFile);
@@ -140,6 +142,7 @@ void MainWindow::OnUploadFile(QString filePath) {
     m_eHttpRequest = REQUEST_UPLOAD_FILE;
     QUrl url(uploadUrl);
     QNetworkRequest req(url);
+    req.setRawHeader("UserName", g_stUserInfo.strUserName.toLocal8Bit());
     m_pNetworkReply = m_pAccessManager->post(req, m_pMultiPart);
     connect(m_pNetworkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(upLoadError(QNetworkReply::NetworkError)));
     connect(m_pNetworkReply, SIGNAL(uploadProgress(qint64, qint64 )), this, SLOT(OnUploadProgress(qint64, qint64 )));
@@ -194,7 +197,7 @@ void MainWindow::OnGetUploadFiles() {
 
     QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
-    QString fileListUrl = "http://" + host + ":" + port + "/uploadfiles";
+    QString fileListUrl = "http://" + host + ":" + port + "/uploadfiles2";
     QUrl url(fileListUrl);
     QNetworkRequest req(url);
     req.setRawHeader("token", "20200101");
