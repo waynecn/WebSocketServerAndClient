@@ -26,5 +26,5 @@ void ProgressDialog::SetProgress(qint64 val, qint64 total) {
 
 void ProgressDialog::on_okPushButton_clicked()
 {
-    accept();
+    hide();
 }
