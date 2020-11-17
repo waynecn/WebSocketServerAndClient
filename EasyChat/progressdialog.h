@@ -2,6 +2,7 @@
 #define PROGRESSDIALOG_H
 
 #include <QDialog>
+#include <QTime>
 
 namespace Ui {
 class ProgressDialog;
@@ -16,12 +17,14 @@ public:
     ~ProgressDialog();
 
     void SetProgress(qint64 val, qint64 total);
+    void SetLeftTime(qint64 timeLeft);
 
 private slots:
     void on_okPushButton_clicked();
 
 private:
     Ui::ProgressDialog *ui;
+    QTime           m_tStart;
 };
 
 #endif // PROGRESSDIALOG_H

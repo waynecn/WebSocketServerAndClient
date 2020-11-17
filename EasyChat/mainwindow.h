@@ -21,6 +21,7 @@
 #include <QTableWidgetItem>
 #include <QPushButton>
 #include <QMessageBox>
+#include <QTime>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -74,6 +75,8 @@ private:
     QString                 m_strDownLoadImageFile;
     QPushButton             *m_pOpenFileDirPushBtn;
     QMessageBox             *m_pMsgBox;
+    QTime                   m_tStart;
+    qint64                  m_downLoadByte;
 
 signals:
     void webscketDisconnected();

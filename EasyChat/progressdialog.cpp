@@ -24,7 +24,12 @@ void ProgressDialog::SetProgress(qint64 val, qint64 total) {
     }
 }
 
+void ProgressDialog::SetLeftTime(qint64 timeLeft) {
+    int leftSec = timeLeft / 1000;
+    ui->leftTime->setText(QString("%1秒").arg(leftSec));
+}
+
 void ProgressDialog::on_okPushButton_clicked()
 {
-    hide();
+    accept();
 }

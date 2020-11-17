@@ -41,6 +41,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_pMsgBox->addButton(m_pOpenFileDirPushBtn, QMessageBox::AcceptRole);
     m_pMsgBox->addButton("确认", QMessageBox::AcceptRole);
 
+    m_tStart = QTime::currentTime();
+
     connect(&g_WebSocket, SIGNAL(connected()), this, SLOT(OnWebSocketConnected()));
     connect(&g_WebSocket, SIGNAL(disconnected()), this, SLOT(OnWebSocketDisconnected()));
     connect(&g_WebSocket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(OnWebSocketError(QAbstractSocket::SocketError)));
@@ -149,6 +151,7 @@ void MainWindow::OnUploadFile(QString filePath) {
         m_pProgressDialog = new ProgressDialog();
     }
     m_pProgressDialog->exec();
+    m_tStart = QTime::currentTime();
 }
 
 void MainWindow::OnAnchorClicked(const QUrl &url) {
@@ -177,6 +180,7 @@ void MainWindow::OnAnchorClicked(const QUrl &url) {
     QNetworkRequest req(url);
     QNetworkReply *downloadReply = m_pAccessManager->get(req);
     connect(downloadReply, SIGNAL(downloadProgress(qint64, qint64)), this, SLOT(OnDownloadProgress(qint64, qint64)));
+    m_tStart = QTime::currentTime();
 }
 
 void MainWindow::OnDownloadImage(QString strUrl, QString saveDir) {
@@ -308,6 +312,18 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
         m_pProgressDialog->exec();
     }
 
+    QTime curTime = QTime::currentTime();
+    int msecTo = m_tStart.msecsTo(curTime);
+    //计算下载剩余的内容所需的时间
+    qint64 timeLeft;
+    if (recved == 0 || total == 0) {
+        timeLeft = 0;
+    } else {
+        timeLeft = (total - recved) * msecTo / recved;
+    }
+
+    m_pProgressDialog->SetLeftTime(timeLeft);
+
     m_pProgressDialog->SetProgress(recved, total);
 }
 
@@ -319,6 +335,13 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     if (m_pProgressDialog->isHidden() && recved < total) {
         m_pProgressDialog->exec();
     }
+
+    QTime curTime = QTime::currentTime();
+    int msecTo = m_tStart.msecsTo(curTime);
+    //计算下载剩余的内容所需的时间
+    qint64 timeLeft = (total - recved) * msecTo / recved;
+
+    m_pProgressDialog->SetLeftTime(timeLeft);
 
     m_pProgressDialog->SetProgress(recved, total);
 }
