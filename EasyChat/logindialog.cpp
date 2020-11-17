@@ -91,6 +91,7 @@ void LoginDialog::on_loginBtn_clicked()
     QByteArray bData = codec->fromUnicode(loginInfo);
 
     m_pAccessManager->post(req, bData);
+    ui->loginBtn->setEnabled(false);
 }
 
 void LoginDialog::on_registerBtn_clicked()

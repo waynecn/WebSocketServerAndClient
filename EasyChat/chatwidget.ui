@@ -100,13 +100,13 @@
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>20</height>
+         <height>30</height>
         </size>
        </property>
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>20</height>
+         <height>30</height>
         </size>
        </property>
        <widget class="QPushButton" name="uploadFilePushButton">
@@ -115,23 +115,36 @@
           <x>9</x>
           <y>0</y>
           <width>60</width>
-          <height>20</height>
+          <height>30</height>
          </rect>
         </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>20</height>
+          <height>30</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
           <width>60</width>
-          <height>20</height>
+          <height>30</height>
          </size>
+        </property>
+        <property name="font">
+         <font>
+          <family>宋体</family>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">border-color: rgb(22, 22, 22);
+background-color: rgb(224, 226, 225);</string>
         </property>
         <property name="text">
          <string>上传文件</string>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
         </property>
        </widget>
        <widget class="QPushButton" name="fileListPushButton">
@@ -140,23 +153,36 @@
           <x>70</x>
           <y>0</y>
           <width>80</width>
-          <height>20</height>
+          <height>30</height>
          </rect>
         </property>
         <property name="minimumSize">
          <size>
           <width>0</width>
-          <height>20</height>
+          <height>30</height>
          </size>
         </property>
         <property name="maximumSize">
          <size>
           <width>80</width>
-          <height>20</height>
+          <height>30</height>
          </size>
+        </property>
+        <property name="font">
+         <font>
+          <family>宋体</family>
+          <pointsize>10</pointsize>
+         </font>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">border-color: rgb(22, 22, 22);
+background-color: rgb(224, 226, 225);</string>
         </property>
         <property name="text">
          <string>已上传文件</string>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
         </property>
        </widget>
       </widget>

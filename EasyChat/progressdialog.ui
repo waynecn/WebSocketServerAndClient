@@ -6,9 +6,21 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>226</width>
-    <height>142</height>
+    <width>240</width>
+    <height>110</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>240</width>
+    <height>110</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>240</width>
+    <height>110</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>进度</string>
@@ -18,6 +30,12 @@
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QLabel" name="label_3">
+       <property name="font">
+        <font>
+         <family>宋体</family>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="text">
         <string>剩余时间:</string>
        </property>
@@ -25,8 +43,14 @@
      </item>
      <item>
       <widget class="QLabel" name="leftTime">
+       <property name="font">
+        <font>
+         <family>宋体</family>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
        <property name="text">
-        <string>TextLabel</string>
+        <string/>
        </property>
       </widget>
      </item>
@@ -65,8 +89,14 @@
        <property name="maximumSize">
         <size>
          <width>75</width>
-         <height>20</height>
+         <height>30</height>
         </size>
+       </property>
+       <property name="font">
+        <font>
+         <family>宋体</family>
+         <pointsize>12</pointsize>
+        </font>
        </property>
        <property name="text">
         <string>确定</string>
