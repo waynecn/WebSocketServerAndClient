@@ -36,6 +36,9 @@
          <pointsize>10</pointsize>
         </font>
        </property>
+       <property name="styleSheet">
+        <string notr="true">border-color: rgb(0, 0, 0);</string>
+       </property>
        <property name="text">
         <string>剩余时间:</string>
        </property>
@@ -48,6 +51,9 @@
          <family>宋体</family>
          <pointsize>10</pointsize>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border-color: rgb(0, 0, 0);</string>
        </property>
        <property name="text">
         <string/>
@@ -84,7 +90,7 @@
        </property>
       </widget>
      </item>
-     <item>
+     <item alignment="Qt::AlignHCenter">
       <widget class="QPushButton" name="okPushButton">
        <property name="maximumSize">
         <size>
@@ -97,6 +103,9 @@
          <family>宋体</family>
          <pointsize>12</pointsize>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QPushButton { border: 2px solid #8f8f91; border-radius: 6px; \n                                            background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, \n                                            stop: 0 #f6f7fa, stop: 1 #dadbde); \n                                            min-width: 60px; } \n                                        QPushButton:pressed { \n                                            background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, \n                                            stop: 0 #dadbde, stop: 1 #f6f7fa); \n                                        } \n                                        QPushButton:flat { \n                                            border: none; \n                                        } \n                                        QPushButton:default { \n                                            border-color: navy; \n                                        }</string>
        </property>
        <property name="text">
         <string>确定</string>

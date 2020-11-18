@@ -6,6 +6,7 @@ ProgressDialog::ProgressDialog(QWidget *parent) :
     ui(new Ui::ProgressDialog)
 {
     ui->setupUi(this);
+    ui->okPushButton->hide();
 
     setWindowFlags(windowFlags() & Qt::WindowCloseButtonHint);
 }
