@@ -32,7 +32,7 @@ void ProgressDialog::SetLeftTime(qint64 timeLeft) {
     QString str = "";
     if (leftSec > 3600) {
         leftHour = leftSec / 3600;
-        str = QString("%1小时%2分钟%3秒").arg(leftHour).arg((leftSec - 3600) / 60).arg(leftSec % 60);
+        str = QString("%1小时%2分钟%3秒").arg(leftHour).arg((leftSec - leftHour * 3600) / 60).arg(leftSec % 60);
     } else if (leftSec <= 3600 && leftSec > 60) {
         leftMiniute = leftSec / 60;
         str = QString("%1分钟%2秒").arg(leftMiniute).arg(leftSec % 60);
