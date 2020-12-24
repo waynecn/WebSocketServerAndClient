@@ -18,10 +18,17 @@
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
-    <widget class="QTableWidget" name="tableWidget"/>
+    <widget class="FileListTableWidget" name="tableWidget"/>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>FileListTableWidget</class>
+   <extends>QTableWidget</extends>
+   <header>filelisttablewidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

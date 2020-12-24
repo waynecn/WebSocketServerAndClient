@@ -52,6 +52,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_pChatWidget, SIGNAL(downloadImage(QString, QString)), this, SLOT(OnDownloadImage(QString, QString)));
     connect(m_pChatWidget, SIGNAL(queryUploadFiles()), this, SLOT(OnGetUploadFiles()));
     connect(m_pChatWidget, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)), this, SLOT(OnTableWidgetItemClicked(QTableWidgetItem *)));
+    connect(m_pChatWidget, SIGNAL(deleteFile(QString &)), this, SLOT(OnDeleteFile(QString &)));
     connect(this, SIGNAL(uploadFileSuccess(QString)), m_pChatWidget, SLOT(OnUploadFileSuccess(QString)));
     connect(this, SIGNAL(imageDownloadFinished()), m_pChatWidget, SLOT(OnImageDownloadFinished()));
     connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pChatWidget, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
@@ -218,6 +219,24 @@ void MainWindow::OnTableWidgetItemClicked(QTableWidgetItem *item) {
     OnAnchorClicked(url);
 }
 
+void MainWindow::OnDeleteFile(QString &fileName) {
+    m_eHttpRequest = REQUEST_DELETE_FILE;
+    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
+    QString deleteFileUrl = "http://" + host + ":" + port + "/delfile";
+    qDebug() << "deleteFileUrl:" << deleteFileUrl;
+
+    //return;
+
+    QUrl url(deleteFileUrl);
+    QNetworkRequest req(url);
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setRawHeader("token", "20200101");
+
+    QString strData = "{\"fileName\":\"" + fileName + "\"}";
+    m_pAccessManager->post(req, strData.toLocal8Bit());
+}
+
 void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
     int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if(reply->error() == QNetworkReply::NoError && statusCode == 200) {
@@ -286,6 +305,36 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
             }
             QJsonArray files = jsonDoc["Files"].toArray();
             emit queryUploadFilesSuccess(files);
+        } else if (REQUEST_DELETE_FILE == m_eHttpRequest) {
+            QByteArray baData = reply->readAll();
+            QJsonParseError jsonErr;
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(baData, &jsonErr);
+            if (jsonErr.error != QJsonParseError::NoError) {
+                QString msg = "解析rsponse数据发生错误";
+                qDebug() << msg;
+                QMessageBox box;
+                box.setWindowTitle("警告");
+                box.setText(msg);
+                box.addButton("确定", QMessageBox::AcceptRole);
+                box.exec();
+                reply->deleteLater();
+                return;
+            }
+
+            qDebug() << "delete response:" << jsonDoc;
+
+            Q_ASSERT(jsonDoc.isObject());
+            bool bRet = jsonDoc["Success"].toBool();
+            if (!bRet) {
+                QString msg = "删除失败：" + jsonDoc["Msg"].toString();
+                qDebug() << msg;
+                QMessageBox box;
+                box.setWindowTitle("提示");
+                box.setText(msg);
+                box.addButton("确定", QMessageBox::AcceptRole);
+                box.exec();
+                return;
+            }
         }
     } else {
         QString msg = "网络异常,请检查网络连接或服务是否正常.";

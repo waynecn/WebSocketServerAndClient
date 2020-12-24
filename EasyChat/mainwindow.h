@@ -49,6 +49,7 @@ private slots:
     void OnDownloadImage(QString strUrl, QString saveDir);
     void OnGetUploadFiles();
     void OnTableWidgetItemClicked(QTableWidgetItem *item);
+    void OnDeleteFile(QString &fileName);
     void OnNetworkReplyFinished(QNetworkReply *reply);
     void upLoadError(QNetworkReply::NetworkError err);
     void OnUploadProgress(qint64 recved, qint64 total);

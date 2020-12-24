@@ -1,9 +1,14 @@
 #ifndef FILELISTDLG_H
 #define FILELISTDLG_H
 
+#include "filelisttablewidget.h"
+
 #include <QDialog>
 #include <QJsonArray>
 #include <QTableWidgetItem>
+#include <QMenu>
+#include <QAction>
+#include <QMouseEvent>
 
 namespace Ui {
 class FileListDlg;
@@ -27,6 +32,7 @@ private:
 signals:
     void tableWidgetItemClicked(QTableWidgetItem *item);
     void onDownLoadItem(QTableWidgetItem *item);
+    void deleteFile(QString &fileName);
 };
 
 #endif // FILELISTDLG_H

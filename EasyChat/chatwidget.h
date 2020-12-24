@@ -73,6 +73,7 @@ signals:
     void queryUploadFiles();
     void queryUploadFilesSuccess(QJsonArray &files);
     void tableWidgetItemClicked(QTableWidgetItem *item);
+    void deleteFile(QString &f);
 };
 
 #endif // CHATWIDGET_H

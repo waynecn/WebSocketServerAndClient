@@ -4,7 +4,7 @@
 #include <QString>
 #include <QtWebSockets/QWebSocket>
 
-const QString   APPLICATION_VERSION = "1.0.9";
+const QString   APPLICATION_VERSION = "1.0.10";
 
 void RestartApp();
 
@@ -38,7 +38,8 @@ enum HttpRequest {
     REQUEST_UPLOAD_FILE,
     REQUEST_DOWNLOAD_FILE,
     REQUEST_DOWNLOAD_IMAGE,
-    REQUEST_GET_UPLOAD_FILES
+    REQUEST_GET_UPLOAD_FILES,
+    REQUEST_DELETE_FILE
 };
 
 const QString WEBSOCKET_ERROR_STRINGS[24] = {

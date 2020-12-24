@@ -19,6 +19,7 @@ SOURCES += \
     chatwidget.cpp \
     common.cpp \
     filelistdlg.cpp \
+    filelisttablewidget.cpp \
     logindialog.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -31,6 +32,7 @@ HEADERS += \
     chatwidget.h \
     common.h \
     filelistdlg.h \
+    filelisttablewidget.h \
     logindialog.h \
     mainwindow.h \
     mytextbrowser.h \

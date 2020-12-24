@@ -5,6 +5,7 @@
 #include <QTableWidgetItem>
 #include <QPushButton>
 #include <QDebug>
+#include <QJsonObject>
 
 FileListDlg::FileListDlg(QWidget *parent) :
     QDialog(parent),
@@ -28,13 +29,14 @@ FileListDlg::FileListDlg(QWidget *parent) :
 
     connect(ui->tableWidget, SIGNAL(itemClicked(QTableWidgetItem *)), this, SLOT(OnItemClicked(QTableWidgetItem *)));
     connect(this, SIGNAL(onDownLoadItem(QTableWidgetItem *)), this, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)));
+    connect(ui->tableWidget, SIGNAL(deleteFile(QString &)), this, SIGNAL(deleteFile(QString &)));
 }
 
 FileListDlg::~FileListDlg()
 {
     delete ui;
 }
-#include <QJsonObject>
+
 void FileListDlg::OnQueryUploadFilesSuccess(QJsonArray &files) {
     this->resize(this->size());
     int size = files.size();

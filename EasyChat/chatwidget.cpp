@@ -149,6 +149,7 @@ ChatWidget::ChatWidget(QWidget *parent) :
     connect(m_pTextBrowser, SIGNAL(anchorClicked(const QUrl &)), this, SIGNAL(anchorClicked(const QUrl &)));
     connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pFileListDlg, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
     connect(m_pFileListDlg, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)), this, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)));
+    connect(m_pFileListDlg, SIGNAL(deleteFile(QString &)), this, SIGNAL(deleteFile(QString &)));
 }
 
 ChatWidget::~ChatWidget()

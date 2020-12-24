@@ -18,6 +18,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"database/sql"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 var clients = make(map[*websocket.Conn]bool) // connected clients
@@ -111,8 +113,13 @@ type FilesResponse2 struct {
 	Files []FileInfo
 }
 
+type DeleteFile struct {
+	FileName string
+}
+
 var g_sqlConfig SqlConfig
 var g_Db *sql.DB
+var g_strWorkDir string
 
 func ReadConfig(path string) (SqlConfig) {
 	buf, err := ioutil.ReadFile(path)
@@ -144,6 +151,8 @@ func connectSql() (*sql.DB, error) {
 }
 
 func main() {
+	g_strWorkDir = getCurrentDirectory()
+	log.Println("workDir:", g_strWorkDir)
 	//Read config
 	configPath := "./config/config.json"
 	g_sqlConfig = ReadConfig(configPath)
@@ -167,6 +176,7 @@ func main() {
 	http.HandleFunc("/register", registerFunction)
 	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
 	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)
+	http.HandleFunc("/delfile", deleteFile)
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -846,6 +856,97 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		log.Println("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
+	}
+	io.WriteString(w, string(bts))
+}
+
+func deleteFile(w http.ResponseWriter, r *http.Request) {
+	log.Println("delete file...")
+	tokens := r.Header["Token"]
+	if tokens == nil {
+		res := HttpResponse{false, "need token", -1, ""}
+		ret, err := json.Marshal(res)
+		if err != nil {
+			log.Println("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+		io.WriteString(w, string(ret))
+		return
+	}
+	token := tokens[0]
+	log.Println("token:", token)
+	if token != "20200101" {
+		res := HttpResponse{false, "Token verify failed.", -1, ""}
+		_, err := json.Marshal(res)
+		if err != nil {
+			log.Println("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+	}
+
+	utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
+	body, err := ioutil.ReadAll(utf8Reader)
+	msg := "delete file ReadAll body failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	var deleteFile DeleteFile
+	err = json.Unmarshal(body, &deleteFile)
+	msg = "delete file json unmarshal failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	log.Println("deleteFile fileName:", deleteFile.FileName)
+
+	//Check username and password from mysql
+	strSql := "select id, file_name from chat_upload_files where file_name=?"
+	stmt, err := g_Db.Prepare(strSql)
+	msg = "Prepare sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	rows, err := stmt.Query(deleteFile.FileName)
+	msg = "Query sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer rows.Close()
+	log.Println("rows:", rows)
+
+	var id int
+	var file_name string
+	for rows.Next() {
+		err := rows.Scan(&id, &file_name)
+		log.Println("fileName:", file_name)
+		msg = "Failed to get sql item."
+		if !checkErr(err, msg, w) {
+			return
+		}
+		
+		delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
+		log.Println("delSql:", delSql)
+		g_Db.Query(delSql)
+	}
+	
+	response := HttpResponse{true, "success", id, file_name}
+	bts, err := json.Marshal(response)
+	if err != nil {
+		log.Println("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
+		return
+	}
+
+	f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
+	log.Println("f:", f)
+	err = os.Remove(f)
+	if err != nil {
+		msg = "remove file from disk failed.{}"
+		log.Println(msg, err)
 	}
 	io.WriteString(w, string(bts))
 }
