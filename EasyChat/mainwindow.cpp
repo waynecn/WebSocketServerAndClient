@@ -321,8 +321,6 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
                 return;
             }
 
-            qDebug() << "delete response:" << jsonDoc;
-
             Q_ASSERT(jsonDoc.isObject());
             bool bRet = jsonDoc["Success"].toBool();
             if (!bRet) {
@@ -333,6 +331,7 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
                 box.setText(msg);
                 box.addButton("确定", QMessageBox::AcceptRole);
                 box.exec();
+                reply->deleteLater();
                 return;
             }
         }
