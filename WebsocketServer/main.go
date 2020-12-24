@@ -152,7 +152,6 @@ func connectSql() (*sql.DB, error) {
 
 func main() {
 	g_strWorkDir = getCurrentDirectory()
-	log.Println("workDir:", g_strWorkDir)
 	//Read config
 	configPath := "./config/config.json"
 	g_sqlConfig = ReadConfig(configPath)
@@ -861,7 +860,6 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
-	log.Println("delete file...")
 	tokens := r.Header["Token"]
 	if tokens == nil {
 		res := HttpResponse{false, "need token", -1, ""}
@@ -875,7 +873,6 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := tokens[0]
-	log.Println("token:", token)
 	if token != "20200101" {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
@@ -900,8 +897,6 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("deleteFile fileName:", deleteFile.FileName)
-
 	//Check username and password from mysql
 	strSql := "select id, file_name from chat_upload_files where file_name=?"
 	stmt, err := g_Db.Prepare(strSql)
@@ -916,7 +911,6 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	log.Println("rows:", rows)
 
 	var id int
 	var file_name string
@@ -929,7 +923,6 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
-		log.Println("delSql:", delSql)
 		g_Db.Query(delSql)
 	}
 	
@@ -942,7 +935,6 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
-	log.Println("f:", f)
 	err = os.Remove(f)
 	if err != nil {
 		msg = "remove file from disk failed.{}"
