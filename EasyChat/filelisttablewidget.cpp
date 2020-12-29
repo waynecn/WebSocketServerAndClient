@@ -5,6 +5,7 @@
 #include <QSettings>
 #include <QGuiApplication>
 #include <QClipboard>
+#include <QMessageBox>
 
 FileListTableWidget::FileListTableWidget(QWidget *parent) :
     QTableWidget(parent),
@@ -73,5 +74,16 @@ void FileListTableWidget::OnDeleteActTriggered(bool b) {
     QTableWidgetItem *fileNameItem = this->item(item->row(), 1);
 
     QString fileName = fileNameItem->text();
+
+    QMessageBox box;
+    box.setWindowTitle("提示");
+    box.setText("确定要删除文件:" + fileName + "吗？");
+    box.addButton("确定", QMessageBox::AcceptRole);
+    box.addButton("取消", QMessageBox::RejectRole);
+    int nRet = box.exec();
+    if (nRet == QMessageBox::Rejected) {
+        return;
+    }
+
     emit deleteFile(fileName);
 }
