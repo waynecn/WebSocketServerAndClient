@@ -81,7 +81,7 @@ void FileListTableWidget::OnDeleteActTriggered(bool b) {
     box.addButton("确定", QMessageBox::AcceptRole);
     box.addButton("取消", QMessageBox::RejectRole);
     int nRet = box.exec();
-    if (nRet == QMessageBox::Rejected) {
+    if (nRet != 0) {
         return;
     }
 
