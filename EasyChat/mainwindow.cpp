@@ -370,6 +370,15 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
         timeLeft = (total - recved) * msecTo / recved;
     }
 
+    //计算下载速度
+    qint64 downloadSpeed = 0;
+    if (msecTo == 0) {
+        downloadSpeed = 0;
+    } else {
+        downloadSpeed = recved / (msecTo * 1024 / 1000);
+    }
+    m_pProgressDialog->SetDownLoadSpeed(downloadSpeed);
+
     m_pProgressDialog->SetLeftTime(timeLeft);
 
     m_pProgressDialog->SetProgress(recved, total);
@@ -389,6 +398,14 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     //计算下载剩余的内容所需的时间
     qint64 timeLeft = (total - recved) * msecTo / recved;
 
+    //计算下载速度
+    qint64 downloadSpeed = 0;
+    if (msecTo == 0 || recved == 0) {
+        downloadSpeed = 0;
+    } else {
+        downloadSpeed = recved / (msecTo * 1024 / 1000);
+    }
+    m_pProgressDialog->SetDownLoadSpeed(downloadSpeed);
     m_pProgressDialog->SetLeftTime(timeLeft);
 
     m_pProgressDialog->SetProgress(recved, total);

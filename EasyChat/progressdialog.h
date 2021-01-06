@@ -18,6 +18,7 @@ public:
 
     void SetProgress(qint64 val, qint64 total);
     void SetLeftTime(qint64 timeLeft);
+    void SetDownLoadSpeed(qint64 speed);
 
 private slots:
     void on_okPushButton_clicked();

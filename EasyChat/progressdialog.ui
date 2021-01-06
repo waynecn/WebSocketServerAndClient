@@ -7,19 +7,19 @@
     <x>0</x>
     <y>0</y>
     <width>240</width>
-    <height>110</height>
+    <height>120</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>240</width>
-    <height>110</height>
+    <height>120</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>240</width>
-    <height>110</height>
+    <height>120</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -27,7 +27,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
       <widget class="QLabel" name="label_3">
        <property name="font">
@@ -63,6 +63,42 @@
     </layout>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="font">
+        <font>
+         <family>宋体</family>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border-color: rgb(0, 0, 0);</string>
+       </property>
+       <property name="text">
+        <string>速    度:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="downLoadSpeed">
+       <property name="font">
+        <font>
+         <family>宋体</family>
+         <pointsize>10</pointsize>
+        </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">border-color: rgb(0, 0, 0);</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
     <widget class="QProgressBar" name="progressBar">
      <property name="minimumSize">
       <size>
@@ -80,46 +116,6 @@
       <number>24</number>
      </property>
     </widget>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-     <item alignment="Qt::AlignHCenter">
-      <widget class="QPushButton" name="okPushButton">
-       <property name="maximumSize">
-        <size>
-         <width>75</width>
-         <height>30</height>
-        </size>
-       </property>
-       <property name="font">
-        <font>
-         <family>宋体</family>
-         <pointsize>12</pointsize>
-        </font>
-       </property>
-       <property name="styleSheet">
-        <string notr="true">QPushButton { border: 2px solid #8f8f91; border-radius: 6px; \n                                            background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, \n                                            stop: 0 #f6f7fa, stop: 1 #dadbde); \n                                            min-width: 60px; } \n                                        QPushButton:pressed { \n                                            background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, \n                                            stop: 0 #dadbde, stop: 1 #f6f7fa); \n                                        } \n                                        QPushButton:flat { \n                                            border: none; \n                                        } \n                                        QPushButton:default { \n                                            border-color: navy; \n                                        }</string>
-       </property>
-       <property name="text">
-        <string>确定</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-     </item>
-    </layout>
    </item>
   </layout>
  </widget>

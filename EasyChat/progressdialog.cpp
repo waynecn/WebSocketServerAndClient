@@ -6,7 +6,7 @@ ProgressDialog::ProgressDialog(QWidget *parent) :
     ui(new Ui::ProgressDialog)
 {
     ui->setupUi(this);
-    ui->okPushButton->hide();
+    //ui->okPushButton->hide();
 
     setWindowFlags(windowFlags() & Qt::WindowCloseButtonHint);
 }
@@ -41,6 +41,10 @@ void ProgressDialog::SetLeftTime(qint64 timeLeft) {
     }
 
     ui->leftTime->setText(str);
+}
+
+void ProgressDialog::SetDownLoadSpeed(qint64 speed) {
+    ui->downLoadSpeed->setText(QString("%1 kB/s").arg(speed));
 }
 
 void ProgressDialog::on_okPushButton_clicked()
