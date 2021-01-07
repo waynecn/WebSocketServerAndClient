@@ -151,6 +151,11 @@ func connectSql() (*sql.DB, error) {
 }
 
 func main() {
+	fmt.Println("Use -p xxxx to use the given port xxxx")
+	port := "5133"
+	if len(os.Args) >= 3 {
+		port = os.Args[2]
+	}
 	g_strWorkDir = getCurrentDirectory()
 	//Read config
 	configPath := "./config/config.json"
@@ -184,8 +189,8 @@ func main() {
 	go handleMessages()
 
 	// Start the server on localhost port 8000 and log any errors
-	log.Println("http server started on :5133")
-	err = http.ListenAndServe(":5133", nil)
+	log.Println("http server started on :", port)
+	err = http.ListenAndServe(":" + port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
