@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Simple Chat</title>
+    <title>在线聊天</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/css/materialize.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/emojione/2.2.6/assets/css/emojione.min.css"/>
+    <link rel="stylesheet" href="/materialize.min.css">
+    <link rel="stylesheet" href="/MaterialIcons">
+    <link rel="stylesheet" href="/emojione.min.css"/>
     <link rel="stylesheet" href="/style.css">
 
 </head>
@@ -14,7 +14,7 @@
 <header>
     <nav>
         <div class="nav-wrapper">
-            <a href="/" class="brand-logo right">Simple Chat</a>
+            <a href="/" class="brand-logo right">在线聊天</a>
         </div>
     </nav>
 </header>
@@ -33,8 +33,8 @@
         </div>
         <div class="input-field col s4">
             <button class="waves-effect waves-light btn" @click="send">
-                <i class="material-icons right">chat</i>
-                Send
+                <i class="material-icons right">聊天</i>
+                发送
             </button>
         </div>
     </div>
@@ -44,19 +44,19 @@
         </div>
         <div class="input-field col s4">
             <button class="waves-effect waves-light btn" @click="join()">
-                <i class="material-icons right">done</i>
-                Join
+                <i class="material-icons right">完成</i>
+                加入
             </button>
         </div>
     </div>
 </main>
 <footer class="page-footer">
 </footer>
-<script src="https://unpkg.com/vue@2.1.3/dist/vue.min.js"></script>
-<script src="https://cdn.jsdelivr.net/emojione/2.2.6/lib/js/emojione.min.js"></script>
-<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.2/rollups/md5.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.8/js/materialize.min.js"></script>
+<script src="/vue.min.js"></script>
+<script src="/js/emojione.min.js"></script>
+<script src="/js/jquery-2.1.1.min.js"></script>
+<script src="/js/md5.js"></script>
+<script src="/js/materialize.min.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

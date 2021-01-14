@@ -15,15 +15,17 @@ new Vue({
         this.ws.addEventListener('message', function(e) {
             console.log("message:", e);
             var msg = JSON.parse(e.data);
-            msg = msg.message;
-            if (msg.filelink == "") {
-                self.chatContent += '<div class="chip">' + msg.username + '</div>'
-                    + emojione.toImage(msg.message) + '<br/>' + '<div class="time" style="color:gray">' + self.getCurrentTime() + '</div>';
-            } else {
-                self.chatContent += '<div class="chip">'
-                        + msg.username + '</div>' 
-                    + emojione.toImage(msg.message) + '<br/>' + '&nbsp;&nbsp;&nbsp;&nbsp;<a href=' + msg.filelink + '>' 
-                    + msg.filelink + '</a>' + '<div class="time" style="color:gray">' + self.getCurrentTime() + '</div>';
+            if (msg != null) {
+                msg = msg.message;
+                if (msg.filelink == "") {
+                    self.chatContent += '<div class="chip">' + msg.username + '</div>'
+                        + emojione.toImage(msg.message) + '<br/>' + '<div class="time" style="color:gray">' + self.getCurrentTime() + '</div>';
+                } else {
+                    self.chatContent += '<div class="chip">'
+                            + msg.username + '</div>' 
+                        + emojione.toImage(msg.message) + '<br/>' + '&nbsp;&nbsp;&nbsp;&nbsp;<a href=' + msg.filelink + '>' 
+                        + msg.filelink + '</a>' + '<div class="time" style="color:gray">' + self.getCurrentTime() + '</div>';
+                }
             }
 
             var element = document.getElementById('chat-messages');
@@ -40,7 +42,7 @@ new Vue({
                         message: {
                             userid: -1,
                             filelink: "",
-                            username: 'web-' + this.username,
+                            username: '网页-' + this.username,
                             message: $('<p>').html(this.newMsg).text(), // Strip out html
                             time: curTime
                         }
@@ -52,7 +54,7 @@ new Vue({
 
         join: function () {
             if (!this.username) {
-                Materialize.toast('You must choose a username', 2000);
+                Materialize.toast('请设定用户名', 2000);
                 return
             }
             this.username = $('<p>').html(this.username).text();
