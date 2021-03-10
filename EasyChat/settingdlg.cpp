@@ -17,7 +17,11 @@ SettingDlg::SettingDlg(QWidget *parent) :
     QString host = setting.value(WEBSOCKET_SERVER_HOST, "").toString();
     QString port = setting.value(WEBSOCKET_SERVER_PORT, "").toString();
     if (!host.isEmpty()) {
-        ui->ipLineEdit->setText(host);
+        QStringList ipList = host.split(",");
+        for (int i = 0; i < ipList.size(); ++i) {
+            ui->ipList->addItem(ipList[i]);
+        }
+        //ui->ipLineEdit->setText(host);
     }
     if (!port.isEmpty()) {
         ui->portLineEdit->setText(port);
@@ -33,9 +37,9 @@ SettingDlg::~SettingDlg()
 
 void SettingDlg::on_okBtn_clicked()
 {
-    QString ip = ui->ipLineEdit->text();
+    QString currentIP = ui->ipList->currentText();
     QString port = ui->portLineEdit->text();
-    if (ip.isEmpty() || port.isEmpty()) {
+    if (currentIP.isEmpty() || port.isEmpty()) {
         QString msg = "IP或端口不能为空";
         QMessageBox box;
         box.setWindowTitle("提示");
@@ -45,7 +49,7 @@ void SettingDlg::on_okBtn_clicked()
         return;
     }
 
-    QStringList ipList = ip.split(".");
+    QStringList ipList = currentIP.split(".");
     if (ipList.size() != 4) {
         QString msg = "IP地址填写有误";
         QMessageBox box;
@@ -85,7 +89,7 @@ void SettingDlg::on_okBtn_clicked()
     bool bExit = false;
     QString oldIP = setting.value(WEBSOCKET_SERVER_HOST).toString();
     QString oldPort = setting.value(WEBSOCKET_SERVER_PORT).toString();
-    if ((!oldIP.isEmpty() || !oldPort.isEmpty()) && (oldIP != ip || oldPort != port)) {
+    if ((!oldIP.isEmpty() || !oldPort.isEmpty()) && (oldIP != currentIP || oldPort != port)) {
         QString msg = "配置发生改变,需要重启程序";
         QMessageBox box;
         box.setWindowTitle("提示");
@@ -95,7 +99,21 @@ void SettingDlg::on_okBtn_clicked()
         bExit = true;
     }
 
-    setting.setValue(WEBSOCKET_SERVER_HOST, ip);
+    bool bExist = false;
+    QStringList oldIPList = oldIP.split(",");
+    for (int i = 0; i < oldIPList.size(); ++i) {
+        if (currentIP.compare(oldIPList[i]) == 0) {
+            bExist = true;
+            break;
+        }
+    }
+    if (!bExist && !oldIP.isEmpty()) {
+        currentIP += "," + oldIP;
+    }
+
+    if (!bExist) {
+        setting.setValue(WEBSOCKET_SERVER_HOST, currentIP);
+    }
     setting.setValue(WEBSOCKET_SERVER_PORT, port);
     accept();
     if (bExit) {
