@@ -60,7 +60,7 @@ void FileListTableWidget::OnCopyLinkTriggered(bool b) {
 
     QString fileName = fileNameItem->text();
     QSettings settings;
-    QString host = settings.value(WEBSOCKET_SERVER_HOST, "").toString();
+    QString host = settings.value(CURRENT_SERVER_HOST, "").toString();
     QString port = settings.value(WEBSOCKET_SERVER_PORT, "").toString();
 
     QString url = "http://" + host + ":" + port + "/uploads/" + fileName;

@@ -543,7 +543,12 @@ void ChatWidget::OnUploadFileSuccess(QString filePath) {
     QString fileName = filePath.mid(filePath.lastIndexOf('/') + 1);
     qDebug() << "filePath:" << filePath << " fileName:" << fileName;
     QSettings setting;
-    QString host = setting.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = "";
+    if (setting.value(CURRENT_SERVER_HOST, "").toString().isEmpty()) {
+        host = setting.value(WEBSOCKET_SERVER_HOST).toString();
+    } else {
+        host = setting.value(CURRENT_SERVER_HOST).toString();
+    }
     QString port = setting.value(WEBSOCKET_SERVER_PORT).toString();
     QString msg = ui->inputTextEdit->toPlainText();
     int nCurIndex = ui->showMsgTabWidget->currentIndex();

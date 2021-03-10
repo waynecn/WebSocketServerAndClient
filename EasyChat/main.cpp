@@ -16,7 +16,14 @@ int main(int argc, char *argv[])
     APPLICATION_DIR = QCoreApplication::applicationDirPath();
 
     QSettings settings;
-    QString host = settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = settings.value(CURRENT_SERVER_HOST, "").toString();
+    if (host.isEmpty()) {
+        if (settings.value(WEBSOCKET_SERVER_HOST, "").toString().contains(",")) {
+            host = "";
+        } else {
+            host = settings.value(WEBSOCKET_SERVER_HOST, "").toString();
+        }
+    }
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
     if (host.isEmpty() || port.isEmpty()) {
         SettingDlg *dlg = SettingDlg::GetInstance();

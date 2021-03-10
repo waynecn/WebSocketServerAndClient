@@ -26,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_pChatWidget = new ChatWidget();
     setCentralWidget(m_pChatWidget);
 
-    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
     m_strWsUrl = QString("ws://%1:%2/ws").arg(host).arg(port);
     QUrl url(m_strWsUrl);
@@ -127,7 +127,7 @@ void MainWindow::OnUploadFile(QString filePath) {
     m_pFile->open(QIODevice::ReadOnly);
 
     QString fileName = filePath.mid(filePath.lastIndexOf('/') + 1);
-    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
     QString uploadUrl = "http://" + host + ":" + port + "/uploads2";
     qDebug() << "uploadUrl:" << uploadUrl;
@@ -199,7 +199,7 @@ void MainWindow::OnDownloadImage(QString strUrl, QString saveDir) {
 void MainWindow::OnGetUploadFiles() {
     m_eHttpRequest = REQUEST_GET_UPLOAD_FILES;
 
-    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
     QString fileListUrl = "http://" + host + ":" + port + "/uploadfiles2";
     QUrl url(fileListUrl);
@@ -212,7 +212,7 @@ void MainWindow::OnTableWidgetItemClicked(QTableWidgetItem *item) {
     QString fileName = item->text();
     qDebug() << "ready to download file:" << fileName;
 
-    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
     QString fileUrl = "http://" + host + ":" + port + "/uploads/" + fileName;
     QUrl url(fileUrl);
@@ -221,7 +221,7 @@ void MainWindow::OnTableWidgetItemClicked(QTableWidgetItem *item) {
 
 void MainWindow::OnDeleteFile(QString &fileName) {
     m_eHttpRequest = REQUEST_DELETE_FILE;
-    QString host = m_Settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
     QString deleteFileUrl = "http://" + host + ":" + port + "/delfile";
     qDebug() << "deleteFileUrl:" << deleteFileUrl;

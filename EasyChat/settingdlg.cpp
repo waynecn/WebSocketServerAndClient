@@ -89,7 +89,8 @@ void SettingDlg::on_okBtn_clicked()
     bool bExit = false;
     QString oldIP = setting.value(WEBSOCKET_SERVER_HOST).toString();
     QString oldPort = setting.value(WEBSOCKET_SERVER_PORT).toString();
-    if ((!oldIP.isEmpty() || !oldPort.isEmpty()) && (oldIP != currentIP || oldPort != port)) {
+    QString currentServerHost = setting.value(CURRENT_SERVER_HOST).toString();
+    if ((!currentServerHost.isEmpty() || !oldPort.isEmpty()) && (currentServerHost != currentIP || oldPort != port)) {
         QString msg = "配置发生改变,需要重启程序";
         QMessageBox box;
         box.setWindowTitle("提示");
@@ -114,6 +115,7 @@ void SettingDlg::on_okBtn_clicked()
     if (!bExist) {
         setting.setValue(WEBSOCKET_SERVER_HOST, currentIP);
     }
+    setting.setValue(CURRENT_SERVER_HOST, ui->ipList->currentText());
     setting.setValue(WEBSOCKET_SERVER_PORT, port);
     accept();
     if (bExit) {

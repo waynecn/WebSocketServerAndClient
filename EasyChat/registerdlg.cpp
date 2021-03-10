@@ -62,7 +62,7 @@ void RegisterDlg::on_okBtn_clicked()
     m_eRequestAction = REQUEST_REGISTER;
 
     QSettings settings;
-    QString host = settings.value(WEBSOCKET_SERVER_HOST).toString();
+    QString host = settings.value(CURRENT_SERVER_HOST).toString();
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
     QUrl url(QString("http://%1:%2/register").arg(host).arg(port));
     QNetworkRequest req(url);
