@@ -23,6 +23,9 @@ SettingDlg::SettingDlg(QWidget *parent) :
         }
         //ui->ipLineEdit->setText(host);
     }
+    if (!setting.value(CURRENT_SERVER_HOST, "").toString().isEmpty()) {
+        ui->ipList->setCurrentText(setting.value(CURRENT_SERVER_HOST).toString());
+    }
     if (!port.isEmpty()) {
         ui->portLineEdit->setText(port);
     }
