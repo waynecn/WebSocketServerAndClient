@@ -1,29 +1,36 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"io"
-	"io/ioutil"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"os"
+	"io"
+	"io/ioutil"
+	"log"
 	"mime"
 	_ "mime/multipart"
-	"path/filepath"
+	"net/http"
 	"net/url"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
+
+	"database/sql"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"database/sql"
+	rotatelogs "github.com/lestrrat/go-file-rotatelogs"
+	"github.com/rifflock/lfshook"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
 
 var clients = make(map[*websocket.Conn]bool) // connected clients
-var broadcast = make(chan StringMessage)           // broadcast channel
+var broadcast = make(chan StringMessage)     // broadcast channel
 var onlineusers []OnlineUser
 
 // Configure the upgrader
@@ -45,7 +52,7 @@ type Message struct {
 
 type StringMessage struct {
 	MessageType int
-	Message 	[]byte
+	Message     []byte
 }
 
 type LoginUser struct {
@@ -56,72 +63,100 @@ type LoginUser struct {
 type RegisterUser struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-	Email string `json:"email"`
-	Mobile string `json:"mobile"`
+	Email    string `json:"email"`
+	Mobile   string `json:"mobile"`
 }
 
 type SqlConfig struct {
-	Host string	`json:"host"`
-	Port int	`json:"port"`
-	Database string	`json:"database"`
-	UserName string	`json:"username"`
-	Password string	`json:"password"`
-	Charset string	`json:"charset"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	UserName string `json:"username"`
+	Password string `json:"password"`
+	Charset  string `json:"charset"`
 }
 
 type SqlUser struct {
-	Id int
-	UserName string
-	Mobile string
-	Password string
+	Id         int
+	UserName   string
+	Mobile     string
+	Password   string
 	CreateTime string
 	ModifyTime string
 }
 
 type OnlineSt struct {
-	Userid string
+	Userid   string
 	Username string
 }
 
 type OnlineUser struct {
 	Online OnlineSt
-	Addr string
+	Addr   string
 }
 
 type FileInfo struct {
-	FileName string
-	FileSize int
+	FileName   string
+	FileSize   int
 	UploadUser sql.NullString
 }
 
 type HttpResponse struct {
-	Success bool
-	Msg string
-	Id int
+	Success  bool
+	Msg      string
+	Id       int
 	Username string
 }
 
 type FilesResponse struct {
 	Success bool
-	Msg string
-	Files []string
+	Msg     string
+	Files   []string
 }
 
 type FilesResponse2 struct {
 	Success bool
-	Msg string
-	Files []FileInfo
+	Msg     string
+	Files   []FileInfo
 }
 
 type DeleteFile struct {
 	FileName string
 }
 
+type DeleteFile2 struct {
+	UserName string
+	FileName string
+}
+
+func ConfigLocalFileSystemLogger(logPath string, logFileName string, maxAge time.Duration, rotationTime time.Duration) {
+	baseLogPath := path.Join(logPath, logFileName)
+	fmt.Println("baseLogPath:", baseLogPath)
+	writer, err := rotatelogs.New(baseLogPath+".%Y%m%d%H%M",
+		rotatelogs.WithLinkName(baseLogPath),
+		rotatelogs.WithMaxAge(maxAge),
+		rotatelogs.WithRotationTime(rotationTime))
+	if err != nil {
+		fmt.Println("config local file system logger error, detail err:", err)
+		logrus.Errorf("config local file system logger error. %+v", errors.WithStack(err))
+	}
+
+	lfHook := lfshook.NewHook(lfshook.WriterMap{
+		logrus.DebugLevel: writer,
+		logrus.InfoLevel:  writer,
+		logrus.WarnLevel:  writer,
+		logrus.ErrorLevel: writer,
+		logrus.FatalLevel: writer,
+		logrus.PanicLevel: writer}, &logrus.TextFormatter{})
+
+	logrus.AddHook(lfHook)
+}
+
 var g_sqlConfig SqlConfig
 var g_Db *sql.DB
 var g_strWorkDir string
 
-func ReadConfig(path string) (SqlConfig) {
+func ReadConfig(path string) SqlConfig {
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Panicln("load config conf failed: ", err)
@@ -130,7 +165,7 @@ func ReadConfig(path string) (SqlConfig) {
 	if err != nil {
 		log.Panicln("decode config file failed:", string(buf), err)
 	}
-	
+
 	return g_sqlConfig
 }
 
@@ -139,19 +174,32 @@ func connectSql() (*sql.DB, error) {
 		g_sqlConfig.Password,
 		g_sqlConfig.Host,
 		g_sqlConfig.Port,
-		g_sqlConfig.Database, 
+		g_sqlConfig.Database,
 		g_sqlConfig.Charset)
-	log.Println("dsn:", dsn)
-    db, err := sql.Open("mysql", dsn)
-    if err != nil {
+	log.Printf("dsn:%v", dsn)
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
 		log.Printf("mysql connect failed, detail is [%v]", err.Error())
 		return nil, err
-    }
-    return db, nil
+	}
+	return db, nil
 }
 
 func main() {
-	fmt.Println("Use -p xxxx to use the given port xxxx")
+	absDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
+		return
+	}
+	logDir := absDir + "/log"
+	err = os.MkdirAll(logDir, 0777)
+	if err != nil {
+		fmt.Println("创建目录:", logDir, "失败")
+		return
+	}
+	ConfigLocalFileSystemLogger("./log", "WebSocketServer.log", 30*24*time.Hour, 24*time.Hour)
+
+	logrus.Infof("Use -p xxxx to use the given port xxxx")
 	port := "5133"
 	if len(os.Args) >= 3 {
 		port = os.Args[2]
@@ -160,11 +208,10 @@ func main() {
 	//Read config
 	configPath := "./config/config.json"
 	g_sqlConfig = ReadConfig(configPath)
-	log.Println("sqlConfig:", g_sqlConfig)
-	var err error
+	log.Printf("sqlConfig:%v", g_sqlConfig)
 	g_Db, err = connectSql()
 	if err != nil {
-		log.Println("Connect sql failed.")
+		logrus.Errorf("Connect sql failed.")
 		return
 	}
 	defer g_Db.Close()
@@ -181,6 +228,7 @@ func main() {
 	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
 	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)
 	http.HandleFunc("/delfile", deleteFile)
+	http.HandleFunc("/delfile2", deleteFile2)
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -189,10 +237,10 @@ func main() {
 	go handleMessages()
 
 	// Start the server on localhost port 8000 and log any errors
-	log.Println("http server started on :", port)
-	err = http.ListenAndServe(":" + port, nil)
+	logrus.Infof("http server started on :%s", port)
+	err = http.ListenAndServe(":"+port, nil)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		logrus.Errorf("ListenAndServe: %s", err)
 	}
 }
 
@@ -204,16 +252,16 @@ func getCurrentDirectory() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
-func checkErr(err error, msg string, w http.ResponseWriter) (bool) {
+func checkErr(err error, msg string, w http.ResponseWriter) bool {
 	if err != nil {
 		response := HttpResponse{false, msg + err.Error(), -1, ""}
 		bts, err := json.Marshal(response)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Infof("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return false
 		}
-		log.Println(string(bts))
+		logrus.Infof(string(bts))
 		io.WriteString(w, string(bts))
 		return false
 	}
@@ -221,31 +269,31 @@ func checkErr(err error, msg string, w http.ResponseWriter) (bool) {
 }
 
 func uploadFunction(w http.ResponseWriter, r *http.Request) {
-	if (r.Method != "POST") {
-		log.Println("invalid request")
+	if r.Method != "POST" {
+		logrus.Infof("invalid request")
 		io.WriteString(w, "invalid request")
 		return
 	}
 
 	contentType := r.Header.Get("Content-Type")
 	contentLen := r.ContentLength
-	log.Println("contentType: ", contentType, " contentLen:", contentLen)
+	logrus.Infof("contentType: %s, contentLen:%s", contentType, contentLen)
 	mediatype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		log.Println("ParseMediaType error: ", err)
+		logrus.Errorf("ParseMediaType error: %s", err)
 		w.Write([]byte("ParseMediaType error"))
 		return
 	}
 	curDir := getCurrentDirectory()
-	log.Println("curDir:", curDir)
+	logrus.Infof("curDir:%s", curDir)
 	dir := curDir + "/public/uploads"
-	log.Println("mediatype: ", mediatype)
+	logrus.Infof("mediatype:%s", mediatype)
 	if mediatype == "multipart/form-data" {
-		log.Println("in multipart parsing...")
-		log.Println("r.MultipartForm:", r.MultipartForm)
-		if (r.MultipartForm != nil) {
+		logrus.Infof("in multipart parsing...")
+		logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
+		if r.MultipartForm != nil {
 			for name, files := range r.MultipartForm.File {
-				log.Printf("req.MultipartForm.File,name=:", name, " files:", len(files))
+				logrus.Infof("req.MultipartForm.File,name=:%s files:%s", name, len(files))
 				if len(files) != 1 {
 					w.Write([]byte("too many files"))
 					return
@@ -260,13 +308,13 @@ func uploadFunction(w http.ResponseWriter, r *http.Request) {
 						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
 						return
 					}
-		
+
 					path := dir + f.Filename
 					dst, _ := os.Create(path)
 					io.Copy(dst, handle)
 					dst.Close()
-					fmt.Printf("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
-		
+					logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
+
 					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
 				}
 			}
@@ -278,50 +326,50 @@ func uploadFunction(w http.ResponseWriter, r *http.Request) {
 			for {
 				p, err := reader.NextPart()
 				if err == io.EOF {
-					log.Println("EOF break")
-					break;
+					logrus.Infof("EOF break")
+					break
 				}
 
 				if err != nil {
-					log.Println("reader.NextPart error!", err)
-					break;
+					logrus.Infof("reader.NextPart error:%s", err)
+					break
 				}
 
 				fileName := p.FileName()
-				log.Println("fileName:", fileName)
+				logrus.Infof("fileName:%s", fileName)
 				if fileName != "" {
 					_, err = os.Stat(dir)
 					if err != nil && os.IsNotExist(err) {
 						//目录不存在
 						err = os.MkdirAll(dir, 0777)
 						if err != nil {
-							log.Println("create dir failed:", err)
+							logrus.Infof("create dir failed:%s", err)
 							continue
 						}
 					}
 					fo, err := os.Create(dir + "/" + fileName)
 					if err != nil {
-						log.Println("os create file err: ", err)
+						logrus.Infof("os create file err:%s", err)
 						continue
 					}
 					defer fo.Close()
 					defer recordToSql(fileName)
 					formValue, _ := ioutil.ReadAll(p)
-					fo.Write(formValue);
+					fo.Write(formValue)
 				}
 			}
 		}
 	}
 
-	log.Println("***********************************")
+	logrus.Infof("***********************************")
 
-	var bts = []byte("success");
+	var bts = []byte("success")
 	w.Write(bts)
 }
 
 func uploadFunction2(w http.ResponseWriter, r *http.Request) {
-	if (r.Method != "POST") {
-		log.Println("invalid request")
+	if r.Method != "POST" {
+		logrus.Errorf("invalid request")
 		io.WriteString(w, "invalid request")
 		return
 	}
@@ -329,23 +377,23 @@ func uploadFunction2(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	contentLen := r.ContentLength
 	userName := r.Header.Get("UserName")
-	log.Println("contentType: ", contentType, " contentLen:", contentLen, " user:", userName)
+	logrus.Infof("contentType:%s contentLen:%s user:%s", contentType, contentLen, userName)
 	mediatype, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
-		log.Println("ParseMediaType error: ", err)
+		logrus.Errorf("ParseMediaType error:%s", err)
 		w.Write([]byte("ParseMediaType error"))
 		return
 	}
 	curDir := getCurrentDirectory()
-	log.Println("curDir:", curDir)
+	logrus.Infof("curDir:%s", curDir)
 	dir := curDir + "/public/uploads"
-	log.Println("mediatype: ", mediatype)
+	logrus.Infof("mediatype: ", mediatype)
 	if mediatype == "multipart/form-data" {
-		log.Println("in multipart parsing...")
-		log.Println("r.MultipartForm:", r.MultipartForm)
-		if (r.MultipartForm != nil) {
+		logrus.Infof("in multipart parsing...")
+		logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
+		if r.MultipartForm != nil {
 			for name, files := range r.MultipartForm.File {
-				log.Printf("req.MultipartForm.File,name=:", name, " files:", len(files))
+				logrus.Errorf("req.MultipartForm.File,name=:%s files:%s", name, len(files))
 				if len(files) != 1 {
 					w.Write([]byte("too many files"))
 					return
@@ -360,13 +408,13 @@ func uploadFunction2(w http.ResponseWriter, r *http.Request) {
 						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
 						return
 					}
-		
+
 					path := dir + f.Filename
 					dst, _ := os.Create(path)
 					io.Copy(dst, handle)
 					dst.Close()
-					fmt.Printf("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
-		
+					logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s", f.Filename, float64(contentLen)/1024/1024, path)
+
 					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
 				}
 			}
@@ -378,44 +426,44 @@ func uploadFunction2(w http.ResponseWriter, r *http.Request) {
 			for {
 				p, err := reader.NextPart()
 				if err == io.EOF {
-					log.Println("EOF break")
-					break;
+					logrus.Infof("EOF break")
+					break
 				}
 
 				if err != nil {
-					log.Println("reader.NextPart error!", err)
-					break;
+					logrus.Infof("reader.NextPart error:%s", err)
+					break
 				}
 
 				fileName := p.FileName()
-				log.Println("fileName:", fileName)
+				logrus.Infof("fileName:%s", fileName)
 				if fileName != "" {
 					_, err = os.Stat(dir)
 					if err != nil && os.IsNotExist(err) {
 						//目录不存在
 						err = os.MkdirAll(dir, 0777)
 						if err != nil {
-							log.Println("create dir failed:", err)
+							logrus.Infof("create dir failed:%s", err)
 							continue
 						}
 					}
 					fo, err := os.Create(dir + "/" + fileName)
 					if err != nil {
-						log.Println("os create file err: ", err)
+						logrus.Infof("os create file err: ", err)
 						continue
 					}
 					defer fo.Close()
 					defer recordToSql2(fileName, userName, contentLen)
 					formValue, _ := ioutil.ReadAll(p)
-					fo.Write(formValue);
+					fo.Write(formValue)
 				}
 			}
 		}
 	}
 
-	log.Println("***********************************")
+	logrus.Infof("***********************************")
 
-	var bts = []byte("success");
+	var bts = []byte("success")
 	w.Write(bts)
 }
 
@@ -458,16 +506,16 @@ func loginFunction(w http.ResponseWriter, r *http.Request) {
 		if !checkErr(err, msg, w) {
 			return
 		}
-		
+
 		if userinfo.Password != password {
 			response := HttpResponse{false, "Password is not correct.", -1, ""}
 			bts, err := json.Marshal(response)
 			if err != nil {
-				log.Println("json marshal failed.")
+				logrus.Errorf("json marshal failed.")
 				io.WriteString(w, "json marshal failed.")
 				return
 			}
-			log.Println(string(bts))
+			logrus.Infof(string(bts))
 			io.WriteString(w, string(bts))
 			return
 		}
@@ -477,18 +525,18 @@ func loginFunction(w http.ResponseWriter, r *http.Request) {
 		response := HttpResponse{false, "User does not exist.", -1, ""}
 		bts, err := json.Marshal(response)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
-		log.Println(string(bts))
+		logrus.Infof(string(bts))
 		io.WriteString(w, string(bts))
 		return
 	}
 	response := HttpResponse{true, "success", id, user_name}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		log.Println("json marshal failed.")
+		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
@@ -497,12 +545,12 @@ func loginFunction(w http.ResponseWriter, r *http.Request) {
 
 func registerFunction(w http.ResponseWriter, r *http.Request) {
 	token := r.Header["Token"][0]
-	log.Println("token:", token)
+	logrus.Infof("token:%s", token)
 	if token != "20200101" {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -546,11 +594,11 @@ func registerFunction(w http.ResponseWriter, r *http.Request) {
 			response := HttpResponse{false, "User already exists.", -1, ""}
 			bts, err := json.Marshal(response)
 			if err != nil {
-				log.Println("json marshal failed.")
+				logrus.Errorf("json marshal failed.")
 				io.WriteString(w, "json marshal failed.")
 				return
 			}
-			log.Println(string(bts))
+			logrus.Infof(string(bts))
 			io.WriteString(w, string(bts))
 			return
 		}
@@ -573,12 +621,12 @@ func registerFunction(w http.ResponseWriter, r *http.Request) {
 	if !checkErr(err, "Get LastInsertId failed.", w) {
 		return
 	}
-	log.Println("new Insert id:", newId)
+	logrus.Infof("new Insert id:%s", newId)
 
 	response := HttpResponse{true, "success", id, regUser.Username}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		log.Println("json marshal failed.")
+		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
@@ -589,7 +637,7 @@ func broadCastOnline() {
 	for client := range clients {
 		contents, err := json.Marshal(onlineusers)
 		if err != nil {
-			log.Println("json Marshal onlineusers failed.")
+			logrus.Errorf("json Marshal onlineusers failed.")
 			continue
 		}
 
@@ -598,7 +646,7 @@ func broadCastOnline() {
 		msg.Message = contents
 		err = client.WriteMessage(msg.MessageType, msg.Message)
 		if err != nil {
-			log.Printf("Broadcast online message error: %v", err)
+			logrus.Errorf("Broadcast online message error: %v", err)
 			client.Close()
 			delete(clients, client)
 		}
@@ -616,7 +664,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	// Register our new client
 	clients[ws] = true
-	log.Println("ws:", ws.RemoteAddr(), " Network:", ws.RemoteAddr().Network(), " String:", ws.RemoteAddr().String())
+	logrus.Infof("ws:%s  Network:%s String:%s", ws.RemoteAddr(), ws.RemoteAddr().Network(), ws.RemoteAddr().String())
 	//Whenever a new client was connected, send the online message to all clients
 	broadCastOnline()
 
@@ -625,15 +673,15 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		// Read in a new message as JSON and map it to a Message object
 		messageType, p, err := ws.ReadMessage()
 		if err != nil {
-			log.Printf("ReadMessage error: %v", err)
+			logrus.Errorf("ReadMessage error:%v", err)
 			addr := ws.RemoteAddr().String()
 			for index, item := range onlineusers {
 				if item.Addr == addr {
-					onlineusers = append(onlineusers[:index], onlineusers[index + 1:]...)
+					onlineusers = append(onlineusers[:index], onlineusers[index+1:]...)
 				}
 			}
 			delete(clients, ws)
-			log.Println("Current online user count:", len(onlineusers))
+			logrus.Infof("Current online user count:%v", len(onlineusers))
 			broadCastOnline()
 			break
 		}
@@ -650,7 +698,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			var onlineuser OnlineUser
 			err = json.Unmarshal([]byte(onlinestr), &onlineuser)
 			if err != nil {
-				log.Println("json unmarshal online info failed.")
+				logrus.Errorf("json unmarshal online info failed.")
 				continue
 			}
 			bFind := false
@@ -667,7 +715,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				onlineusers = append(onlineusers, onlineuser)
 			}
 		}
-		log.Println("Current online user count:", len(onlineusers))
+		logrus.Infof("Current online user count:%s", len(onlineusers))
 	}
 }
 
@@ -678,9 +726,9 @@ func handleMessages() {
 		// Send it out to every client that is currently connected
 		for client := range clients {
 			err := client.WriteMessage(msg.MessageType, msg.Message)
-			//log.Println(msg.Message)
+			//logrus.Infof(msg.Message)
 			if err != nil {
-				log.Printf("WriteMessage error: %v", err)
+				logrus.Errorf("WriteMessage error: %v", err)
 				client.Close()
 				delete(clients, client)
 			}
@@ -693,22 +741,22 @@ func recordToSql(fileName string) bool {
 	stmt, err := g_Db.Prepare(strSql)
 	msg := "Prepare sql failed in recordToSql"
 	if err != nil {
-		log.Println(msg)
+		logrus.Errorf(msg)
 		return false
 	}
-	
+
 	res, err := stmt.Exec(fileName)
 	if err != nil {
-		log.Println("insert into sql failed in recordToSql")
+		logrus.Errorf("insert into sql failed in recordToSql")
 		return false
 	}
 
 	newId, err := res.LastInsertId()
 	if err != nil {
-		log.Println("Get last inserted id failed in recordToSql")
+		logrus.Errorf("Get last inserted id failed in recordToSql")
 		return false
 	}
-	log.Println("new Inserted id:", newId)
+	logrus.Infof("new Inserted id:%s", newId)
 	return true
 }
 
@@ -717,22 +765,22 @@ func recordToSql2(fileName string, userName string, fileSize int64) bool {
 	stmt, err := g_Db.Prepare(strSql)
 	msg := "Prepare sql failed in recordToSql"
 	if err != nil {
-		log.Println(msg)
+		logrus.Errorf(msg)
 		return false
 	}
-	
+
 	res, err := stmt.Exec(fileName, userName, fileSize)
 	if err != nil {
-		log.Println("insert into sql failed in recordToSql")
+		logrus.Errorf("insert into sql failed in recordToSql")
 		return false
 	}
 
 	newId, err := res.LastInsertId()
 	if err != nil {
-		log.Println("Get last inserted id failed in recordToSql")
+		logrus.Errorf("Get last inserted id failed in recordToSql")
 		return false
 	}
-	log.Println("new Inserted id:", newId)
+	logrus.Infof("new Inserted id:%s", newId)
 	return true
 }
 
@@ -742,7 +790,7 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 		res := HttpResponse{false, "need token", -1, ""}
 		ret, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -750,12 +798,12 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := tokens[0]
-	log.Println("token:", token)
+	logrus.Infof("token:%s", token)
 	if token != "20200101" {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -790,7 +838,7 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 	response := FilesResponse{true, "success", files}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		log.Println("json marshal failed.")
+		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
@@ -803,7 +851,7 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		res := HttpResponse{false, "need token", -1, ""}
 		ret, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -811,12 +859,12 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := tokens[0]
-	log.Println("token:", token)
+	logrus.Infof("token:%s", token)
 	if token != "20200101" {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -857,7 +905,7 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 	response := FilesResponse2{true, "success", files}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		log.Println("json marshal failed.")
+		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
@@ -870,7 +918,7 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		res := HttpResponse{false, "need token", -1, ""}
 		ret, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -882,7 +930,7 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
 		if err != nil {
-			log.Println("json marshal failed.")
+			logrus.Errorf("json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
@@ -921,20 +969,20 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 	var file_name string
 	for rows.Next() {
 		err := rows.Scan(&id, &file_name)
-		log.Println("fileName:", file_name)
+		logrus.Infof("fileName:%s", file_name)
 		msg = "Failed to get sql item."
 		if !checkErr(err, msg, w) {
 			return
 		}
-		
+
 		delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
 		g_Db.Query(delSql)
 	}
-	
+
 	response := HttpResponse{true, "success", id, file_name}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		log.Println("json marshal failed.")
+		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
@@ -943,7 +991,93 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 	err = os.Remove(f)
 	if err != nil {
 		msg = "remove file from disk failed.{}"
-		log.Println(msg, err)
+		logrus.Errorf(msg, err)
+	}
+	io.WriteString(w, string(bts))
+}
+
+func deleteFile2(w http.ResponseWriter, r *http.Request) {
+	tokens := r.Header["Token"]
+	if tokens == nil {
+		res := HttpResponse{false, "need token", -1, ""}
+		ret, err := json.Marshal(res)
+		if err != nil {
+			logrus.Errorf("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+		io.WriteString(w, string(ret))
+		return
+	}
+	token := tokens[0]
+	if token != "20200101" {
+		res := HttpResponse{false, "Token verify failed.", -1, ""}
+		_, err := json.Marshal(res)
+		if err != nil {
+			logrus.Errorf("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+	}
+
+	utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
+	body, err := ioutil.ReadAll(utf8Reader)
+	msg := "delete file ReadAll body failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	var deleteFile DeleteFile2
+	err = json.Unmarshal(body, &deleteFile)
+	msg = "delete file json unmarshal failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	logrus.Infof("delete file:%s by user:%s", deleteFile.FileName, deleteFile.UserName)
+
+	//Check username and password from mysql
+	strSql := "select id, file_name from chat_upload_files where file_name=?"
+	stmt, err := g_Db.Prepare(strSql)
+	msg = "Prepare sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	rows, err := stmt.Query(deleteFile.FileName)
+	msg = "Query sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer rows.Close()
+
+	var id int
+	var file_name string
+	for rows.Next() {
+		err := rows.Scan(&id, &file_name)
+		logrus.Infof("fileName:%s", file_name)
+		msg = "Failed to get sql item."
+		if !checkErr(err, msg, w) {
+			return
+		}
+
+		delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
+		g_Db.Query(delSql)
+	}
+
+	response := HttpResponse{true, "success", id, file_name}
+	bts, err := json.Marshal(response)
+	if err != nil {
+		logrus.Errorf("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
+		return
+	}
+
+	f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
+	err = os.Remove(f)
+	if err != nil {
+		msg = "remove file from disk failed.%v"
+		logrus.Errorf(msg, err)
 	}
 	io.WriteString(w, string(bts))
 }

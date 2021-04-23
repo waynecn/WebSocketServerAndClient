@@ -29,3 +29,7 @@ WebSocketChatClient.pro.user
 EasyChat.pro.*
 config.json
 build-EasyChat*
+
+WebsocketServer/log/*
+./log
+log/*

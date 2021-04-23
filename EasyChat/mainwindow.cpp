@@ -223,7 +223,7 @@ void MainWindow::OnDeleteFile(QString &fileName) {
     m_eHttpRequest = REQUEST_DELETE_FILE;
     QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
     QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
-    QString deleteFileUrl = "http://" + host + ":" + port + "/delfile";
+    QString deleteFileUrl = "http://" + host + ":" + port + "/delfile2";
     qDebug() << "deleteFileUrl:" << deleteFileUrl;
 
     //return;
@@ -233,7 +233,7 @@ void MainWindow::OnDeleteFile(QString &fileName) {
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     req.setRawHeader("token", "20200101");
 
-    QString strData = "{\"fileName\":\"" + fileName + "\"}";
+    QString strData = "{\"fileName\":\"" + fileName + "\",\"userName\":\"" + g_stUserInfo.strUserName + "\"}";
     m_pAccessManager->post(req, strData.toLocal8Bit());
 }
 
