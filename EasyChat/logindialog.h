@@ -29,6 +29,7 @@ private slots:
     void on_registerBtn_clicked();
 
     void replyFinished(QNetworkReply *reply);
+    void downLoadNewClient();
 
 private:
     Ui::LoginDialog         *ui;
@@ -36,6 +37,9 @@ private:
 
     HttpRequest             m_eRequestAction;
     bool                    m_bCtrlPressed;
+    QString                 m_sNewClientFileName;
+
+signals:
 };
 
 #endif // LOGINDIALOG_H

@@ -24,12 +24,11 @@ _testmain.go
 *.prof
 WebsocketServer/WebsocketServer*
 WebsocketServer/public/uploads/*
+WebsocketServer/public/clients/*
+WebsocketServer/log/*
 
 WebSocketChatClient.pro.user
 EasyChat.pro.*
 config.json
 build-EasyChat*
 
-WebsocketServer/log/*
-./log
-log/*

@@ -150,6 +150,7 @@ ChatWidget::ChatWidget(QWidget *parent) :
     connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pFileListDlg, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
     connect(m_pFileListDlg, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)), this, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)));
     connect(m_pFileListDlg, SIGNAL(deleteFile(QString &)), this, SIGNAL(deleteFile(QString &)));
+    connect(this, SIGNAL(uploadClient()), this, SLOT(OnUploadClient()));
 }
 
 ChatWidget::~ChatWidget()
@@ -260,6 +261,10 @@ void ChatWidget::keyPressEvent(QKeyEvent *e) {
     if (m_bCtrlPressed && e->key() == Qt::Key_E) {
         SettingDlg *dlg = SettingDlg::GetInstance();
         dlg->exec();
+    }
+
+    if (m_bCtrlPressed && e->key() == Qt::Key_U) {
+        emit uploadClient();
     }
 }
 
@@ -611,6 +616,7 @@ void ChatWidget::OnImageDownloadFinished() {
         MyTextBrowser *pEdit = (MyTextBrowser *)ui->showMsgTabWidget->widget(i);
         pEdit->reload();
         pEdit->moveCursor(QTextCursor::End);
+        pEdit->repaint();
     }
 }
 
@@ -622,4 +628,25 @@ void ChatWidget::on_fileListPushButton_clicked()
 {
     emit queryUploadFiles();
     m_pFileListDlg->exec();
+}
+
+void ChatWidget::OnUploadClient() {
+    QFileDialog dialog;
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    dialog.setViewMode(QFileDialog::Detail);
+    QString filePath;
+    if (dialog.exec()) {
+        QStringList files = dialog.selectedFiles();
+        if (files.size() > 0) {
+            filePath = files[0];
+        }
+    }
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    filePath = filePath.replace("\\", "/");
+
+    emit uploadClient(filePath);
 }

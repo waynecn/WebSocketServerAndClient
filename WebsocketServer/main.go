@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"mime"
 	_ "mime/multipart"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/websocket"
@@ -58,6 +60,12 @@ type StringMessage struct {
 type LoginUser struct {
 	UserName string
 	Password string
+}
+
+type LoginUser2 struct {
+	UserName      string
+	Password      string
+	ClientVersion string
 }
 
 type RegisterUser struct {
@@ -127,6 +135,29 @@ type DeleteFile struct {
 type DeleteFile2 struct {
 	UserName string
 	FileName string
+}
+
+type NewClinetItem struct {
+	NewClient     string
+	UserId        int
+	VersionNumber int
+	FileName      string
+	Md5Value      string
+}
+
+type ClientItem struct {
+	Flag          bool
+	FileName      string
+	Md5Value      string
+	VersionNumber int
+}
+
+type HttpResponse2 struct {
+	Success   bool
+	Msg       string
+	Id        int
+	Username  string
+	NewClient ClientItem
 }
 
 func ConfigLocalFileSystemLogger(logPath string, logFileName string, maxAge time.Duration, rotationTime time.Duration) {
@@ -223,12 +254,14 @@ func main() {
 	//http request response
 	http.HandleFunc("/uploads", uploadFunction)
 	http.HandleFunc("/uploads2", uploadFunction2)
+	http.HandleFunc("/loginnew", loginFunction2)
 	http.HandleFunc("/login", loginFunction)
 	http.HandleFunc("/register", registerFunction)
 	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
 	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)
 	http.HandleFunc("/delfile", deleteFile)
 	http.HandleFunc("/delfile2", deleteFile2)
+	http.HandleFunc("/uploadClient", uploadClient)
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -543,6 +576,134 @@ func loginFunction(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(bts))
 }
 
+func loginFunction2(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("interface:loginFunction2")
+	body, err := ioutil.ReadAll(r.Body)
+	msg := "ReadAll body failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	var userinfo LoginUser2
+	err = json.Unmarshal(body, &userinfo)
+	msg = "json unmarshal failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+	logrus.Infof("userInfo2:%v", userinfo)
+
+	//Check username and password from mysql
+	strSql := "select id, user_name, password from chat_user where mobile=?"
+	stmt, err := g_Db.Prepare(strSql)
+	msg = "Prepare sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	rows, err := stmt.Query(userinfo.UserName)
+	msg = "Query sql failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer rows.Close()
+
+	count := 0
+	var userId int
+	var user_name string
+	var password string
+	for rows.Next() {
+		err := rows.Scan(&userId, &user_name, &password)
+		msg = "Failed to get sql item."
+		if !checkErr(err, msg, w) {
+			return
+		}
+
+		if userinfo.Password != password {
+			response := HttpResponse{false, "Password is not correct.", -1, ""}
+			bts, err := json.Marshal(response)
+			if err != nil {
+				logrus.Errorf("json marshal failed.")
+				io.WriteString(w, "json marshal failed.")
+				return
+			}
+			logrus.Infof(string(bts))
+			io.WriteString(w, string(bts))
+			return
+		}
+		count = count + 1
+	}
+	if count < 1 {
+		response := HttpResponse{false, "User does not exist.", -1, ""}
+		bts, err := json.Marshal(response)
+		if err != nil {
+			logrus.Errorf("json marshal failed.")
+			io.WriteString(w, "json marshal failed.")
+			return
+		}
+		logrus.Infof(string(bts))
+		io.WriteString(w, string(bts))
+		return
+	}
+
+	count = 0
+	fileName := ""
+	md5Str := ""
+	maxVersionNumber := 0
+	finalFileName := ""
+	finalMd5Str := ""
+	newClientFlag := false
+	if userinfo.ClientVersion == "" {
+		return
+	} else {
+		versionNumber := getVersionNumber(userinfo.ClientVersion)
+		strSql2 := "select file_name, md5, version_number from easy_chat_client where version_number > ?"
+		stmt2, err2 := g_Db.Prepare(strSql2)
+		if err2 != nil {
+			logrus.Errorf("loginFunction2 prepare sql error:%v", err2)
+		} else {
+			rows2, err2 := stmt2.Query(versionNumber)
+			if err2 != nil {
+				logrus.Errorf("loginFunction2 Query by versionNumber:%i error:%v", versionNumber, err2)
+			} else {
+				defer rows2.Close()
+				for rows2.Next() {
+					verNumber := 0
+					err := rows2.Scan(&fileName, &md5Str, &verNumber)
+					msg := "Failed to get sql item."
+					if err != nil {
+						logrus.Error(msg)
+						continue
+					}
+
+					if maxVersionNumber < verNumber {
+						maxVersionNumber = verNumber
+						finalFileName = fileName
+						finalMd5Str = md5Str
+					}
+
+					count = count + 1
+				}
+				if count < 1 {
+					logrus.Infof("there is no new client")
+					newClientFlag = false
+				} else {
+					newClientFlag = true
+				}
+			}
+		}
+	}
+
+	clientItem := ClientItem{newClientFlag, finalFileName, finalMd5Str, maxVersionNumber}
+	response := HttpResponse2{true, "success", userId, user_name, clientItem}
+	bts, err := json.Marshal(response)
+	if err != nil {
+		logrus.Errorf("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
+		return
+	}
+	io.WriteString(w, string(bts))
+}
+
 func registerFunction(w http.ResponseWriter, r *http.Request) {
 	token := r.Header["Token"][0]
 	logrus.Infof("token:%s", token)
@@ -681,7 +842,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			delete(clients, ws)
-			logrus.Infof("Current online user count:%v", len(onlineusers))
+			logrus.Infof("Current online user count:%d", len(onlineusers))
 			broadCastOnline()
 			break
 		}
@@ -715,7 +876,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 				onlineusers = append(onlineusers, onlineuser)
 			}
 		}
-		logrus.Infof("Current online user count:%s", len(onlineusers))
+		logrus.Infof("Current online user count:%d", len(onlineusers))
 	}
 }
 
@@ -728,7 +889,7 @@ func handleMessages() {
 			err := client.WriteMessage(msg.MessageType, msg.Message)
 			//logrus.Infof(msg.Message)
 			if err != nil {
-				logrus.Errorf("WriteMessage error: %v", err)
+				logrus.Errorf("WriteMessage error:%v", err)
 				client.Close()
 				delete(clients, client)
 			}
@@ -781,6 +942,30 @@ func recordToSql2(fileName string, userName string, fileSize int64) bool {
 		return false
 	}
 	logrus.Infof("new Inserted id:%s", newId)
+	return true
+}
+
+func recordClient(version string, versionNum int, fileName string, fileSize int64, md5 string, userName string) bool {
+	strSql := "insert easy_chat_client (version, version_number, file_name, file_size, md5, upload_time, upload_by) values (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?);"
+	stmt, err := g_Db.Prepare(strSql)
+	msg := "recordClient Prepare sql failed in recordToSql"
+	if err != nil {
+		logrus.Errorf(msg)
+		return false
+	}
+
+	res, err := stmt.Exec(version, versionNum, fileName, fileSize, md5, userName)
+	if err != nil {
+		logrus.Errorf("recordClient insert into sql failed in recordToSql")
+		return false
+	}
+
+	newId, err := res.LastInsertId()
+	if err != nil {
+		logrus.Errorf("recordClient Get last inserted id failed in recordToSql")
+		return false
+	}
+	logrus.Infof("recordClient new Inserted id:%d", newId)
 	return true
 }
 
@@ -1080,4 +1265,145 @@ func deleteFile2(w http.ResponseWriter, r *http.Request) {
 		logrus.Errorf(msg, err)
 	}
 	io.WriteString(w, string(bts))
+}
+
+func uploadClient(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		logrus.Errorf("invalid request")
+		io.WriteString(w, "invalid request")
+		return
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	contentLen := r.ContentLength
+	logrus.Infof("uploadClient contentType:%s contentLen:%s", contentType, contentLen)
+	mediatype, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		logrus.Errorf("ParseMediaType error:%s", err)
+		w.Write([]byte("ParseMediaType error"))
+		return
+	}
+	curDir := getCurrentDirectory()
+	logrus.Infof("curDir:%s", curDir)
+	dir := curDir + "/public/clients"
+	logrus.Infof("mediatype: %s", mediatype)
+	if mediatype == "multipart/form-data" {
+		logrus.Infof("in multipart parsing...")
+		logrus.Infof("r.MultipartForm:%v", r.MultipartForm)
+		if r.MultipartForm != nil {
+			//表单名称
+			for name, files := range r.MultipartForm.File {
+				logrus.Errorf("req.MultipartForm.File,name=:%s files:%s", name, len(files))
+				if len(files) != 1 {
+					w.Write([]byte("too many files"))
+					return
+				}
+				if name == "" {
+					w.Write([]byte("is not FileData"))
+					return
+				}
+				for _, f := range files {
+					handle, err := f.Open()
+					if err != nil {
+						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
+						return
+					}
+
+					path := dir + f.Filename
+					dst, _ := os.Create(path)
+					io.Copy(dst, handle)
+					dst.Close()
+					logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s", f.Filename, float64(contentLen)/1024/1024, path)
+
+					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
+				}
+			}
+		} else {
+			version := ""
+			versionNumber := -1
+			userName := "unknown"
+			md5Value := "unknown"
+			reader, err := r.MultipartReader()
+			if err != nil {
+				panic(err)
+			}
+			form, err := reader.ReadForm(128)
+			for key, val := range form.Value {
+				logrus.Infof("form key: %s, value: %s", key, val)
+				if key == "versionStr" {
+					if len(val) > 0 {
+						version = val[0]
+					}
+				}
+				if key == "userName" {
+					if len(val) > 0 {
+						userName = val[0]
+					}
+				}
+				if key == "versionNumber" {
+					if len(val) > 0 {
+						versionNumber, err = strconv.Atoi(val[0])
+						if err != nil {
+							logrus.Errorf("versionNumber strconv Atoi error:%v", err)
+						}
+					}
+				}
+				if key == "MD5" {
+					if len(val) > 0 {
+						md5Value = val[0]
+					}
+				}
+			}
+			for _, v := range form.File {
+				for i := 0; i < len(v); i++ {
+					fileName := v[i].Filename
+					logrus.Infof("file part:%d", i)
+					logrus.Infof("fileName:%s", v[i].Filename)
+					logrus.Infof("part-header:%v", v[i].Header)
+
+					_, err = os.Stat(dir)
+					if err != nil && os.IsNotExist(err) {
+						//目录不存在
+						err = os.MkdirAll(dir, 0777)
+						if err != nil {
+							logrus.Infof("create dir failed:%s", err)
+							continue
+						}
+					}
+					fo, err := os.Create(dir + "/" + fileName)
+					if err != nil {
+						logrus.Infof("os create file err:%v", err)
+						continue
+					}
+					defer fo.Close()
+					defer recordClient(version, versionNumber, fileName, contentLen, md5Value, userName)
+					f, _ := v[i].Open()
+					formValue, _ := ioutil.ReadAll(f)
+					fo.Write(formValue)
+				}
+			}
+		}
+	}
+
+	logrus.Infof("***********************************")
+
+	var bts = []byte("success")
+	w.Write(bts)
+}
+
+func getVersionNumber(version string) int {
+	versions := strings.Split(version, ".")
+	length := len(versions)
+	versionNumber := 0
+	for i := 0; i < length; i++ {
+		num, err := strconv.Atoi(versions[i])
+		if err != nil {
+			logrus.Errorf("getVersionNumber strconv Atoi error:%v", err)
+			return 0
+		}
+		versionNumber += num * int(math.Pow10(length-1-i))
+	}
+
+	logrus.Errorf("getVersionNumber end...:%d", versionNumber)
+	return versionNumber
 }

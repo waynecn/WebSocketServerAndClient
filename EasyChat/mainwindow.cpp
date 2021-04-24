@@ -9,6 +9,7 @@
 #include <QHttpMultiPart>
 #include <QFileDialog>
 #include <QProcess>
+#include <QtCore/qmath.h>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -53,6 +54,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_pChatWidget, SIGNAL(queryUploadFiles()), this, SLOT(OnGetUploadFiles()));
     connect(m_pChatWidget, SIGNAL(tableWidgetItemClicked(QTableWidgetItem *)), this, SLOT(OnTableWidgetItemClicked(QTableWidgetItem *)));
     connect(m_pChatWidget, SIGNAL(deleteFile(QString &)), this, SLOT(OnDeleteFile(QString &)));
+    connect(m_pChatWidget, SIGNAL(uploadClient(QString)), this, SLOT(OnUploadClient(QString)));
     connect(this, SIGNAL(uploadFileSuccess(QString)), m_pChatWidget, SLOT(OnUploadFileSuccess(QString)));
     connect(this, SIGNAL(imageDownloadFinished()), m_pChatWidget, SLOT(OnImageDownloadFinished()));
     connect(this, SIGNAL(queryUploadFilesSuccess(QJsonArray&)), m_pChatWidget, SLOT(OnQueryUploadFilesSuccess(QJsonArray&)));
@@ -145,6 +147,98 @@ void MainWindow::OnUploadFile(QString filePath) {
     QUrl url(uploadUrl);
     QNetworkRequest req(url);
     req.setRawHeader("UserName", g_stUserInfo.strUserName.toUtf8());
+    m_pNetworkReply = m_pAccessManager->post(req, m_pMultiPart);
+    connect(m_pNetworkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(upLoadError(QNetworkReply::NetworkError)));
+    connect(m_pNetworkReply, SIGNAL(uploadProgress(qint64, qint64 )), this, SLOT(OnUploadProgress(qint64, qint64 )));
+    if (nullptr == m_pProgressDialog) {
+        m_pProgressDialog = new ProgressDialog();
+    }
+    m_pProgressDialog->exec();
+    m_tStart = QTime::currentTime();
+}
+
+void MainWindow::OnUploadClient(QString filePath) {
+    int versionStartIndex = filePath.lastIndexOf('-');
+    if (versionStartIndex == -1) {
+        QMessageBox box;
+        box.setWindowTitle("提示");
+        box.setText("文件名不符合要求");
+        box.addButton("确定", QMessageBox::AcceptRole);
+        box.exec();
+        return;
+    }
+    int versionEndIndex = filePath.lastIndexOf('.');
+    if (versionEndIndex == -1 || versionEndIndex < versionStartIndex) {
+        QMessageBox box;
+        box.setWindowTitle("提示");
+        box.setText("文件名不符合要求");
+        box.addButton("确定", QMessageBox::AcceptRole);
+        box.exec();
+        return;
+    }
+    QString versionStr = filePath.mid(versionStartIndex + 1, versionEndIndex - versionStartIndex - 1);
+    qDebug() << "VersionStr:" << versionStr;
+    if (versionStr.length() < 1) {
+        QMessageBox box;
+        box.setWindowTitle("提示");
+        box.setText("文件名未包含版本号");
+        box.addButton("确定", QMessageBox::AcceptRole);
+        box.exec();
+        return;
+    }
+    QStringList versions = versionStr.split(".");
+    int versionNumber = 0;
+    for (int i = 0; i < versions.length(); ++i) {
+        versionNumber += versions[i].toInt() * qPow(10, versions.length() - i - 1);
+    }
+
+    m_pFile = new QFile(filePath);
+    m_pFile->open(QIODevice::ReadOnly);
+
+    QString fileName = filePath.mid(filePath.lastIndexOf('/') + 1);
+    QString host = m_Settings.value(CURRENT_SERVER_HOST).toString();
+    QString port = m_Settings.value(WEBSOCKET_SERVER_PORT).toString();
+    QString uploadUrl = "http://" + host + ":" + port + "/uploadClient";
+    qDebug() << "uploadUrl:" << uploadUrl;
+
+    m_pMultiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+
+    QHttpPart filePart;
+    filePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("image/jpeg"));
+    filePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"file\";filename=\"" + fileName + "\";")));
+    filePart.setBodyDevice(m_pFile);
+
+    QHttpPart versionPart;
+    versionPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+    versionPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"versionStr\"")));
+    versionPart.setBody(versionStr.toUtf8());
+
+    QHttpPart versionNumberPart;
+    versionNumberPart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+    versionNumberPart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"versionNumber\"")));
+    versionNumberPart.setBody(QString("%1").arg(versionNumber).toUtf8());
+
+    QHttpPart userNamePart;
+    userNamePart.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+    userNamePart.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"userName\"")));
+    userNamePart.setBody(g_stUserInfo.strUserName.toUtf8());
+
+    QHttpPart md5Part;
+    QString md5Value = fileMd5(filePath);
+    qDebug() << "md5Value:" << md5Value;
+    md5Part.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("text/plain"));
+    md5Part.setHeader(QNetworkRequest::ContentDispositionHeader, QVariant(QString("form-data; name=\"MD5\"")));
+    md5Part.setBody(md5Value.toUtf8());
+
+    m_pMultiPart->append(versionPart);
+    m_pMultiPart->append(versionNumberPart);
+    m_pMultiPart->append(userNamePart);
+    m_pMultiPart->append(md5Part);
+    m_pMultiPart->append(filePart);
+
+    m_eHttpRequest = REQUEST_UPLOAD_CLIENT;
+    QUrl url(uploadUrl);
+    QNetworkRequest req(url);
     m_pNetworkReply = m_pAccessManager->post(req, m_pMultiPart);
     connect(m_pNetworkReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(upLoadError(QNetworkReply::NetworkError)));
     connect(m_pNetworkReply, SIGNAL(uploadProgress(qint64, qint64 )), this, SLOT(OnUploadProgress(qint64, qint64 )));
@@ -425,4 +519,38 @@ void MainWindow::OnOpenFileDirPushed(bool b) {
     QProcess proc;
     proc.execute(cmd);
     proc.close();
+}
+
+QByteArray MainWindow::getFileMD5(QString filePath) {
+    QFile theFile(filePath);
+    theFile.open(QIODevice::ReadOnly);
+    QByteArray ba = QCryptographicHash::hash(theFile.readAll(), QCryptographicHash::Md5);
+    theFile.close();
+    qDebug() << "md5 ba:" << ba;
+    return ba;
+}
+
+QString MainWindow::fileMd5(const QString &sourceFilePath) {
+
+    QFile sourceFile(sourceFilePath);
+    qint64 fileSize = sourceFile.size();
+    const qint64 bufferSize = 10240;
+
+    if (sourceFile.open(QIODevice::ReadOnly)) {
+        char buffer[bufferSize];
+        int bytesRead;
+        int readSize = qMin(fileSize, bufferSize);
+
+        QCryptographicHash hash(QCryptographicHash::Md5);
+
+        while (readSize > 0 && (bytesRead = sourceFile.read(buffer, readSize)) > 0) {
+            fileSize -= bytesRead;
+            hash.addData(buffer, bytesRead);
+            readSize = qMin(fileSize, bufferSize);
+        }
+
+        sourceFile.close();
+        return QString(hash.result().toHex());
+    }
+    return QString();
 }

@@ -38,6 +38,8 @@ public:
 private:
     void keyPressEvent(QKeyEvent *e);
     void keyReleaseEvent(QKeyEvent *e);
+    QByteArray getFileMD5(QString filePath);
+    QString fileMd5(const QString &sourceFilePath);
 
 private slots:
     void OnWebSocketConnected();
@@ -55,6 +57,7 @@ private slots:
     void OnUploadProgress(qint64 recved, qint64 total);
     void OnDownloadProgress(qint64 recved, qint64 total);
     void OnOpenFileDirPushed(bool b);
+    void OnUploadClient(QString filepath);
 
 private:
     Ui::MainWindow          *ui;

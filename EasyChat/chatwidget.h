@@ -43,6 +43,7 @@ private slots:
     void OnUploadFilePushButtonClicked();
 
     void on_fileListPushButton_clicked();
+    void OnUploadClient();
 
 private:
     Ui::ChatWidget *ui;
@@ -74,6 +75,8 @@ signals:
     void queryUploadFilesSuccess(QJsonArray &files);
     void tableWidgetItemClicked(QTableWidgetItem *item);
     void deleteFile(QString &f);
+    void uploadClient();
+    void uploadClient(QString filePath);
 };
 
 #endif // CHATWIDGET_H
