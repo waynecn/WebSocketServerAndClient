@@ -5,6 +5,9 @@
 
 #include <QDialog>
 #include <QNetworkAccessManager>
+#include <QSettings>
+#include <QMessageBox>
+#include <QPushButton>
 
 namespace Ui {
 class LoginDialog;
@@ -30,6 +33,7 @@ private slots:
 
     void replyFinished(QNetworkReply *reply);
     void downLoadNewClient();
+    void OnInstallClient(bool flag);
 
 private:
     Ui::LoginDialog         *ui;
@@ -38,6 +42,11 @@ private:
     HttpRequest             m_eRequestAction;
     bool                    m_bCtrlPressed;
     QString                 m_sNewClientFileName;
+    QSettings               m_Settings;
+    //ProgressDialog          *m_pProgressDialog;
+    QString                 m_strDownLoadFilePath;
+    QMessageBox             *m_pMsgBox;
+    QPushButton             *m_pOpenFileDirPushBtn;
 
 signals:
 };

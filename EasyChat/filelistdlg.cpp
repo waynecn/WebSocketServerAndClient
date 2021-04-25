@@ -19,6 +19,7 @@ FileListDlg::FileListDlg(QWidget *parent) :
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     ui->tableWidget->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
     QStringList headerLables;
     headerLables.push_back("序号");
     headerLables.push_back("文件名");

@@ -12,9 +12,12 @@
 #include <QJsonObject>
 #include <QCloseEvent>
 #include <QSettings>
+#include <QFileDialog>
+#include <QProcess>
 
 LoginDialog::LoginDialog(QWidget *parent) :
     QDialog(parent),
+    m_pMsgBox(nullptr),
     ui(new Ui::LoginDialog)
 {
     Qt::WindowFlags flags= this->windowFlags();
@@ -31,12 +34,25 @@ LoginDialog::LoginDialog(QWidget *parent) :
         ui->passwordEdit->setText(pwd);
     }
 
+    m_pOpenFileDirPushBtn = new QPushButton("现在安装");
+    m_pMsgBox = new QMessageBox();
+    m_pMsgBox->setWindowTitle("提示");
+    m_pMsgBox->addButton(m_pOpenFileDirPushBtn, QMessageBox::AcceptRole);
+    m_pMsgBox->addButton("确认", QMessageBox::AcceptRole);
+
     m_pAccessManager = new QNetworkAccessManager();
     connect(m_pAccessManager, SIGNAL(finished(QNetworkReply *)), this, SLOT(replyFinished(QNetworkReply *)));
+    connect(m_pOpenFileDirPushBtn, SIGNAL(clicked(bool)), this, SLOT(OnInstallClient(bool)));
 }
 
 LoginDialog::~LoginDialog()
 {
+    delete m_pOpenFileDirPushBtn;
+    m_pOpenFileDirPushBtn = nullptr;
+    delete m_pMsgBox;
+    m_pMsgBox = nullptr;
+    delete m_pAccessManager;
+    m_pAccessManager = nullptr;
     delete ui;
 }
 
@@ -93,7 +109,7 @@ void LoginDialog::on_loginBtn_clicked()
     QTextCodec *codec = QTextCodec::codecForName("utf-8");
     //QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"" + APPLICATION_VERSION + "\"}";
     //QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"" + "1.0.12" + "\"}";
-    QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"1.0.12\"}";
+    QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"" + APPLICATION_VERSION + "\"}";
     QByteArray bData = codec->fromUnicode(loginInfo);
 
     m_pAccessManager->post(req, bData);
@@ -116,26 +132,26 @@ void LoginDialog::replyFinished(QNetworkReply *reply) {
     int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     if(reply->error() == QNetworkReply::NoError && statusCode == 200)
     {
-        QByteArray baData = reply->readAll();
-        //将波形数据从waveData中抽取出来，只保留浮点数
-        QJsonParseError jsonErr;
-        QJsonDocument jsonDoc = QJsonDocument::fromJson(baData, &jsonErr);
-        if (jsonErr.error != QJsonParseError::NoError) {
-            QString msg = "解析rsponse数据发生错误";
-            qDebug() << msg;
-            QMessageBox box;
-            box.setWindowTitle("警告");
-            box.setText(msg);
-            box.addButton("确定", QMessageBox::AcceptRole);
-            box.exec();
-            reply->deleteLater();
-            return;
-        }
-
-        qDebug() << "jsonDoc:" << jsonDoc;
-        Q_ASSERT(jsonDoc.isObject());
-        bool bRet = jsonDoc["Success"].toBool();
         if (m_eRequestAction == REQUEST_LOGIN) {
+            QByteArray baData = reply->readAll();
+            //将波形数据从waveData中抽取出来，只保留浮点数
+            QJsonParseError jsonErr;
+            QJsonDocument jsonDoc = QJsonDocument::fromJson(baData, &jsonErr);
+            if (jsonErr.error != QJsonParseError::NoError) {
+                QString msg = "解析rsponse数据发生错误";
+                qDebug() << msg;
+                QMessageBox box;
+                box.setWindowTitle("警告");
+                box.setText(msg);
+                box.addButton("确定", QMessageBox::AcceptRole);
+                box.exec();
+                reply->deleteLater();
+                return;
+            }
+
+            qDebug() << "jsonDoc:" << jsonDoc;
+            Q_ASSERT(jsonDoc.isObject());
+            bool bRet = jsonDoc["Success"].toBool();
             if (!bRet) {
                 QString msg = "登陆失败：" + jsonDoc["Msg"].toString();
                 qDebug() << msg;
@@ -172,11 +188,40 @@ void LoginDialog::replyFinished(QNetworkReply *reply) {
             }
 
             accept();
+        } else if (m_eRequestAction == REQUEST_DOWNLOAD_CLIENT) {
+            if (m_strDownLoadFilePath.isEmpty()) {
+                return;
+            }
+            QFile file(m_strDownLoadFilePath);
+            if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                file.write(reply->readAll());
+            }
+            file.close();
+            qDebug() << "下载完成";
+            m_pMsgBox->setText(QString("新的客户端下载完成").arg(m_strDownLoadFilePath));
+            m_pMsgBox->exec();
+            m_strDownLoadFilePath.clear();
         }
     }
 }
 
 void LoginDialog::downLoadNewClient() {
+    QFileDialog fDlg;
+    fDlg.setAcceptMode(QFileDialog::AcceptSave);
+    fDlg.setFileMode(QFileDialog::AnyFile);
+    QString saveFileDir = m_Settings.value("SAVE_FILE_DIR", "C:/").toString();
+    QString fileName = fDlg.getSaveFileName(this, "Save File", saveFileDir + m_sNewClientFileName);
+    qDebug() << "fileName:" << fileName;
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    m_eRequestAction = REQUEST_DOWNLOAD_CLIENT;
+    m_strDownLoadFilePath = fileName;
+    saveFileDir = m_strDownLoadFilePath.mid(0, m_strDownLoadFilePath.lastIndexOf("/") + 1);
+    qDebug() << "saveFileDir:" << saveFileDir;
+    m_Settings.setValue("SAVE_FILE_DIR", saveFileDir);
+
     QSettings settings;
     QString host = settings.value(CURRENT_SERVER_HOST, "").toString();
     if (host.isEmpty()) {
@@ -184,4 +229,12 @@ void LoginDialog::downLoadNewClient() {
     }
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
     QUrl url(QString("http://%1:%2/clients/%3").arg(host).arg(port).arg(m_sNewClientFileName));
+    QNetworkRequest req(url);
+    m_pAccessManager->get(req);
+}
+
+void LoginDialog::OnInstallClient(bool flag) {
+    QProcess::startDetached(m_strDownLoadFilePath, QStringList());
+    close();
+    QApplication::exit(-1);
 }

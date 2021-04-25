@@ -6,9 +6,22 @@
 #include <QSettings>
 #include <QCoreApplication>
 
+#include <stdlib.h>
+
+LoginDialog *loginDialog = nullptr;
+
+int exitFunc() {
+    if (nullptr != loginDialog) {
+        delete loginDialog;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
+
     QApplication a(argc, argv);
+    _onexit(exitFunc);
     QCoreApplication::setOrganizationName("private");
     QCoreApplication::setOrganizationDomain("private.private.com");
     QCoreApplication::setApplicationName("websocketClient");
@@ -30,7 +43,9 @@ int main(int argc, char *argv[])
         dlg->exec();
     }
 
-    LoginDialog *loginDialog = new LoginDialog();
+    if (loginDialog == nullptr) {
+        loginDialog = new LoginDialog();
+    }
     int nRet = loginDialog->exec();
     if (nRet == QDialog::Accepted) {
         APPLICATION_IMAGE_DIR = APPLICATION_DIR + "/images/" + g_stUserInfo.strUserId + "/";
@@ -42,9 +57,9 @@ int main(int argc, char *argv[])
         w.setWindowTitle(g_stUserInfo.strUserName);
         w.show();
     } else {
-        delete loginDialog;
+        //delete loginDialog;
         exit(-1);
     }
-    delete loginDialog;
+    //delete loginDialog;
     return a.exec();
 }
