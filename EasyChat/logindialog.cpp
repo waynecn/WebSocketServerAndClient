@@ -102,7 +102,7 @@ void LoginDialog::on_loginBtn_clicked()
         settings.value(WEBSOCKET_SERVER_HOST, "").toString();
     }
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
-    QUrl url(QString("http://%1:%2/loginnew").arg(host).arg(port));
+    QUrl url(QString("http://%1:%2/login").arg(host).arg(port));
     qDebug() << "url:" << url;
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");

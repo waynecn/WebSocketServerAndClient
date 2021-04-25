@@ -255,7 +255,7 @@ func main() {
 	http.HandleFunc("/uploads", uploadFunction)
 	http.HandleFunc("/uploads2", uploadFunction2)
 	http.HandleFunc("/loginnew", loginFunction2)
-	http.HandleFunc("/login", loginFunction)
+	http.HandleFunc("/login", loginFunction2)
 	http.HandleFunc("/register", registerFunction)
 	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
 	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)

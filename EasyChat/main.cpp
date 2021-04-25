@@ -19,12 +19,11 @@ int exitFunc() {
 
 int main(int argc, char *argv[])
 {
-
     QApplication a(argc, argv);
-    _onexit(exitFunc);
     QCoreApplication::setOrganizationName("private");
     QCoreApplication::setOrganizationDomain("private.private.com");
     QCoreApplication::setApplicationName("websocketClient");
+    _onexit(exitFunc);
 
     APPLICATION_DIR = QCoreApplication::applicationDirPath();
 
