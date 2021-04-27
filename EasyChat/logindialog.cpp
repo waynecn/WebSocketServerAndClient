@@ -102,7 +102,7 @@ void LoginDialog::on_loginBtn_clicked()
         settings.value(WEBSOCKET_SERVER_HOST, "").toString();
     }
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
-    QUrl url(QString("http://%1:%2/login").arg(host).arg(port));
+    QUrl url(QString("http://%1:%2/loginnew").arg(host).arg(port));
     qDebug() << "url:" << url;
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -134,11 +134,12 @@ void LoginDialog::replyFinished(QNetworkReply *reply) {
     {
         if (m_eRequestAction == REQUEST_LOGIN) {
             QByteArray baData = reply->readAll();
-            //将波形数据从waveData中抽取出来，只保留浮点数
+            //
             QJsonParseError jsonErr;
             QJsonDocument jsonDoc = QJsonDocument::fromJson(baData, &jsonErr);
             if (jsonErr.error != QJsonParseError::NoError) {
-                QString msg = "解析rsponse数据发生错误";
+                qDebug() << "response:" << baData;
+                QString msg = "解析响应数据发生错误";
                 qDebug() << msg;
                 QMessageBox box;
                 box.setWindowTitle("警告");
