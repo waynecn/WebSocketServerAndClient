@@ -107,7 +107,7 @@ void LoginDialog::on_loginBtn_clicked()
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QTextCodec *codec = QTextCodec::codecForName("utf-8");
-    //QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"" + APPLICATION_VERSION + "\"}";
+    //QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\"}";
     //QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"" + "1.0.12" + "\"}";
     QString loginInfo = "{\"username\":\"" + userName + "\", \"password\":\"" + password + "\",\"clientversion\":\"" + APPLICATION_VERSION + "\"}";
     QByteArray bData = codec->fromUnicode(loginInfo);

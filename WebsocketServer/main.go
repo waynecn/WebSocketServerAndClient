@@ -653,7 +653,7 @@ func loginFunction2(w http.ResponseWriter, r *http.Request) {
 	finalMd5Str := ""
 	newClientFlag := false
 	if userinfo.ClientVersion == "" {
-		return
+		//return
 	} else {
 		versionNumber := getVersionNumber(userinfo.ClientVersion)
 		strSql2 := "select file_name, md5, version_number from easy_chat_client where version_number > ?"
