@@ -501,6 +501,7 @@ func uploadFunction2(w http.ResponseWriter, r *http.Request) {
 }
 
 func loginFunction(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("interface:loginFunction")
 	body, err := ioutil.ReadAll(r.Body)
 	msg := "ReadAll body failed."
 	if !checkErr(err, msg, w) {
@@ -705,6 +706,7 @@ func loginFunction2(w http.ResponseWriter, r *http.Request) {
 }
 
 func registerFunction(w http.ResponseWriter, r *http.Request) {
+	logrus.Infof("register request")
 	token := r.Header["Token"][0]
 	logrus.Infof("token:%s", token)
 	if token != "20200101" {

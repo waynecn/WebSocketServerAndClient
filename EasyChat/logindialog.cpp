@@ -101,9 +101,17 @@ void LoginDialog::on_loginBtn_clicked()
     if (host.isEmpty()) {
         settings.value(WEBSOCKET_SERVER_HOST, "").toString();
     }
+    if (host.isEmpty()) {
+        QString msg = "服务器地址为空";
+        QMessageBox box;
+        box.setWindowTitle("警告");
+        box.setText(msg);
+        box.addButton("确定", QMessageBox::AcceptRole);
+        box.exec();
+        return;
+    }
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
     QUrl url(QString("http://%1:%2/loginnew").arg(host).arg(port));
-    qDebug() << "url:" << url;
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     QTextCodec *codec = QTextCodec::codecForName("utf-8");

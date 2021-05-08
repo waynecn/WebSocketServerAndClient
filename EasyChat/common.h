@@ -4,7 +4,7 @@
 #include <QString>
 #include <QtWebSockets/QWebSocket>
 
-const QString   APPLICATION_VERSION = "1.1.4";
+const QString   APPLICATION_VERSION = "1.1.5";
 
 void RestartApp();
 

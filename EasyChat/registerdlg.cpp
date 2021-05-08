@@ -63,6 +63,18 @@ void RegisterDlg::on_okBtn_clicked()
 
     QSettings settings;
     QString host = settings.value(CURRENT_SERVER_HOST).toString();
+    if (host.isEmpty()) {
+        host = settings.value(WEBSOCKET_SERVER_HOST).toString();
+    }
+    if (host.isEmpty()) {
+        QString msg = "服务器地址为空";
+        QMessageBox box;
+        box.setWindowTitle("警告");
+        box.setText(msg);
+        box.addButton("确定", QMessageBox::AcceptRole);
+        box.exec();
+        return;
+    }
     QString port = settings.value(WEBSOCKET_SERVER_PORT).toString();
     QUrl url(QString("http://%1:%2/register").arg(host).arg(port));
     QNetworkRequest req(url);
