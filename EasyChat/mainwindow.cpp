@@ -428,6 +428,8 @@ void MainWindow::OnNetworkReplyFinished(QNetworkReply *reply) {
                 reply->deleteLater();
                 return;
             }
+            //refresh file list after delete file.
+            OnGetUploadFiles();
         }
     } else {
         QString msg = "网络异常,请检查网络连接或服务是否正常.";
