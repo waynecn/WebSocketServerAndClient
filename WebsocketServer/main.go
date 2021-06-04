@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -25,6 +26,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	rotatelogs "github.com/lestrrat/go-file-rotatelogs"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/text/encoding/simplifiedchinese"
@@ -34,6 +36,7 @@ import (
 var clients = make(map[*websocket.Conn]bool) // connected clients
 var broadcast = make(chan StringMessage)     // broadcast channel
 var onlineusers []OnlineUser
+var g_Mutex sync.Mutex
 
 // Configure the upgrader
 var upgrader = websocket.Upgrader{
@@ -76,12 +79,13 @@ type RegisterUser struct {
 }
 
 type SqlConfig struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	Database string `json:"database"`
-	UserName string `json:"username"`
-	Password string `json:"password"`
-	Charset  string `json:"charset"`
+	SqliteFlag bool   `json:"sqliteFlag"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	Database   string `json:"database"`
+	UserName   string `json:"username"`
+	Password   string `json:"password"`
+	Charset    string `json:"charset"`
 }
 
 type SqlUser struct {
@@ -184,7 +188,8 @@ func ConfigLocalFileSystemLogger(logPath string, logFileName string, maxAge time
 }
 
 var g_sqlConfig SqlConfig
-var g_Db *sql.DB
+
+//var g_Db *sql.DB
 var g_strWorkDir string
 
 func ReadConfig(path string) SqlConfig {
@@ -201,19 +206,73 @@ func ReadConfig(path string) SqlConfig {
 }
 
 func connectSql() (*sql.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", g_sqlConfig.UserName,
-		g_sqlConfig.Password,
-		g_sqlConfig.Host,
-		g_sqlConfig.Port,
-		g_sqlConfig.Database,
-		g_sqlConfig.Charset)
-	log.Printf("dsn:%v", dsn)
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		log.Printf("mysql connect failed, detail is [%v]", err.Error())
-		return nil, err
+	if g_sqlConfig.SqliteFlag {
+		absDir, err := os.Getwd()
+		if err != nil {
+			fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
+			return nil, err
+		}
+		db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
+		if err != nil {
+			log.Printf("sqlite open failed:[%v]", err.Error())
+			return nil, err
+		}
+		log.Printf("sqlite connect success.")
+		tableSql := `CREATE TABLE IF NOT EXISTS "chat_user" (
+			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
+			"user_name" varchar(255) NULL,
+			"mobile" varchar(20) NULL,
+			"password" varchar(255) NULL,
+			"create_time" TIMESTAMP default (datetime('now', 'localtime')),
+			"modify_time" NULL
+		  );
+		  CREATE TABLE IF NOT EXISTS "easy_chat_client" (
+			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
+			"version" varchar(255) NULL,
+			"version_number" int(4) DEFAULT NULL,
+			"file_name" varchar(255) NULL,
+			"file_size" bigint(12) DEFAULT NULL,
+			"md5" varchar(255) NULL,
+			"upload_time" TIMESTAMP default (datetime('now', 'localtime')),
+			"upload_by" varchar(255) NULL
+		  );
+		  CREATE TABLE IF NOT EXISTS "chat_upload_files" (
+			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
+			"file_name" varchar(255) NULL,
+			"file_size" bigint(20) NULL,
+			"upload_user" varchar(255) NULL,
+			"create_time" TIMESTAMP default (datetime('now', 'localtime'))
+		  );`
+		res, err := db.Exec(tableSql)
+		if err != nil {
+			log.Printf("sqlite create table failed:[%v]", err.Error())
+			return nil, err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			log.Printf("sqlite get LastInsertId failed:[%v]", err.Error())
+			return nil, err
+		}
+		if id > 0 {
+			log.Printf("sqlite create table last insert id:%d", id)
+		}
+
+		return db, nil
+	} else {
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", g_sqlConfig.UserName,
+			g_sqlConfig.Password,
+			g_sqlConfig.Host,
+			g_sqlConfig.Port,
+			g_sqlConfig.Database,
+			g_sqlConfig.Charset)
+		log.Printf("dsn:%v", dsn)
+		db, err := sql.Open("mysql", dsn)
+		if err != nil {
+			log.Printf("mysql connect failed, detail is [%v]", err.Error())
+			return nil, err
+		}
+		return db, nil
 	}
-	return db, nil
 }
 
 func main() {
@@ -240,12 +299,6 @@ func main() {
 	configPath := "./config/config.json"
 	g_sqlConfig = ReadConfig(configPath)
 	log.Printf("sqlConfig:%v", g_sqlConfig)
-	g_Db, err = connectSql()
-	if err != nil {
-		logrus.Errorf("Connect sql failed.")
-		return
-	}
-	defer g_Db.Close()
 
 	// Create a simple file server
 	fs := http.FileServer(http.Dir("./public"))
@@ -516,6 +569,12 @@ func loginFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Check username and password from mysql
+	g_Db, err := connectSql()
+	msg = "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select id, user_name, password from chat_user where mobile=?"
 	stmt, err := g_Db.Prepare(strSql)
 	msg = "Prepare sql failed."
@@ -594,6 +653,12 @@ func loginFunction2(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("userInfo2:%v", userinfo)
 
 	//Check username and password from mysql
+	g_Db, err := connectSql()
+	msg = "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select id, user_name, password from chat_user where mobile=?"
 	stmt, err := g_Db.Prepare(strSql)
 	msg = "Prepare sql failed."
@@ -732,6 +797,12 @@ func registerFunction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//check the new user exists or not
+	g_Db, err := connectSql()
+	msg = "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select id from chat_user where mobile=?;"
 	stmt, err := g_Db.Prepare(strSql)
 	msg = "Prepare sql failed 1."
@@ -766,8 +837,9 @@ func registerFunction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	strSql = "insert chat_user (user_name,mobile,password) values(?,?,?);"
+	g_Mutex.Lock()
+	defer g_Mutex.Unlock()
+	strSql = "insert into chat_user (user_name,mobile,password) values(?,?,?);"
 	stmt, err = g_Db.Prepare(strSql)
 	msg = "Prepare sql failed 2."
 	if !checkErr(err, msg, w) {
@@ -900,7 +972,15 @@ func handleMessages() {
 }
 
 func recordToSql(fileName string) bool {
-	strSql := "insert chat_upload_files (file_name) values (?);"
+	g_Db, err := connectSql()
+	if err != nil {
+		logrus.Errorf("recordToSql connect sql failed:[%v]", err.Error())
+		return false
+	}
+	defer g_Db.Close()
+	g_Mutex.Lock()
+	defer g_Mutex.Unlock()
+	strSql := "insert into chat_upload_files (file_name) values (?);"
 	stmt, err := g_Db.Prepare(strSql)
 	msg := "Prepare sql failed in recordToSql"
 	if err != nil {
@@ -924,7 +1004,15 @@ func recordToSql(fileName string) bool {
 }
 
 func recordToSql2(fileName string, userName string, fileSize int64) bool {
-	strSql := "insert chat_upload_files (file_name, upload_user, file_size) values (?, ?, ?);"
+	g_Db, err := connectSql()
+	if err != nil {
+		logrus.Errorf("recordToSql connect sql failed:[%v]", err.Error())
+		return false
+	}
+	defer g_Db.Close()
+	g_Mutex.Lock()
+	defer g_Mutex.Unlock()
+	strSql := "insert into chat_upload_files (file_name, upload_user, file_size) values (?, ?, ?);"
 	stmt, err := g_Db.Prepare(strSql)
 	msg := "Prepare sql failed in recordToSql"
 	if err != nil {
@@ -948,7 +1036,15 @@ func recordToSql2(fileName string, userName string, fileSize int64) bool {
 }
 
 func recordClient(version string, versionNum int, fileName string, fileSize int64, md5 string, userName string) bool {
-	strSql := "insert easy_chat_client (version, version_number, file_name, file_size, md5, upload_time, upload_by) values (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?);"
+	g_Db, err := connectSql()
+	if err != nil {
+		logrus.Errorf("recordClient connect sql failed:[%v]", err.Error())
+		return false
+	}
+	defer g_Db.Close()
+	g_Mutex.Lock()
+	defer g_Mutex.Unlock()
+	strSql := "insert into easy_chat_client (version, version_number, file_name, file_size, md5, upload_time, upload_by) values (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?);"
 	stmt, err := g_Db.Prepare(strSql)
 	msg := "recordClient Prepare sql failed in recordToSql"
 	if err != nil {
@@ -985,27 +1081,33 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token := tokens[0]
-	logrus.Infof("token:%s", token)
+	logrus.Infof("queryUploadFilesFunction token:%s", token)
 	if token != "20200101" {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
 		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
+			logrus.Errorf("queryUploadFilesFunction json marshal failed.")
+			io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
 			return
 		}
 	}
 
 	//check the new user exists or not
+	g_Db, err := connectSql()
+	msg := "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select file_name from chat_upload_files order by create_time desc;"
 	stmt, err := g_Db.Prepare(strSql)
-	msg := "Prepare sql failed 1."
+	msg = "queryUploadFilesFunction Prepare sql failed 1."
 	if !checkErr(err, msg, w) {
 		return
 	}
 
 	rows, err := stmt.Query()
-	msg = "Query sql failed."
+	msg = "queryUploadFilesFunction Query sql failed."
 	if !checkErr(err, msg, w) {
 		return
 	}
@@ -1015,7 +1117,7 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 	var files []string
 	for rows.Next() {
 		err := rows.Scan(&fileName)
-		msg = "Failed to get sql item."
+		msg = "queryUploadFilesFunction Failed to get sql item."
 		if !checkErr(err, msg, w) {
 			return
 		}
@@ -1025,8 +1127,8 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 	response := FilesResponse{true, "success", files}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		logrus.Errorf("json marshal failed.")
-		io.WriteString(w, "json marshal failed.")
+		logrus.Errorf("queryUploadFilesFunction json marshal failed.")
+		io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
 		return
 	}
 	io.WriteString(w, string(bts))
@@ -1038,35 +1140,42 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		res := HttpResponse{false, "need token", -1, ""}
 		ret, err := json.Marshal(res)
 		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
+			logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
+			io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
 			return
 		}
 		io.WriteString(w, string(ret))
 		return
 	}
 	token := tokens[0]
-	logrus.Infof("token:%s", token)
+	logrus.Infof("queryUploadFilesFunction2 token:%s", token)
 	if token != "20200101" {
 		res := HttpResponse{false, "Token verify failed.", -1, ""}
 		_, err := json.Marshal(res)
 		if err != nil {
-			logrus.Errorf("json marshal failed.")
+			logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
 			io.WriteString(w, "json marshal failed.")
 			return
 		}
 	}
 
 	//check the new user exists or not
+
+	g_Db, err := connectSql()
+	msg := "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select file_name,file_size,upload_user from chat_upload_files order by create_time desc;"
 	stmt, err := g_Db.Prepare(strSql)
-	msg := "Prepare sql failed 1."
+	msg = "queryUploadFilesFunction2 Prepare sql failed 1."
 	if !checkErr(err, msg, w) {
 		return
 	}
 
 	rows, err := stmt.Query()
-	msg = "Query sql failed."
+	msg = "queryUploadFilesFunction2 Query sql failed."
 	if !checkErr(err, msg, w) {
 		return
 	}
@@ -1078,7 +1187,7 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 	var files []FileInfo
 	for rows.Next() {
 		err := rows.Scan(&fileName, &fileSize, &uploadUser)
-		msg = "Failed to get sql item."
+		msg = "queryUploadFilesFunction2 Failed to get sql item."
 		if !checkErr(err, msg, w) {
 			return
 		}
@@ -1092,8 +1201,8 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 	response := FilesResponse2{true, "success", files}
 	bts, err := json.Marshal(response)
 	if err != nil {
-		logrus.Errorf("json marshal failed.")
-		io.WriteString(w, "json marshal failed.")
+		logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
+		io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
 		return
 	}
 	io.WriteString(w, string(bts))
@@ -1138,6 +1247,13 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Check username and password from mysql
+
+	g_Db, err := connectSql()
+	msg = "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select id, file_name from chat_upload_files where file_name=?"
 	stmt, err := g_Db.Prepare(strSql)
 	msg = "Prepare sql failed."
@@ -1152,6 +1268,8 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	g_Mutex.Lock()
+	defer g_Mutex.Unlock()
 	var id int
 	var file_name string
 	for rows.Next() {
@@ -1224,6 +1342,12 @@ func deleteFile2(w http.ResponseWriter, r *http.Request) {
 	logrus.Infof("delete file:%s by user:%s", deleteFile.FileName, deleteFile.UserName)
 
 	//Check username and password from mysql
+	g_Db, err := connectSql()
+	msg = "connect sql failed"
+	if !checkErr(err, msg, w) {
+		return
+	}
+	defer g_Db.Close()
 	strSql := "select id, file_name from chat_upload_files where file_name=?"
 	stmt, err := g_Db.Prepare(strSql)
 	msg = "Prepare sql failed."
@@ -1237,22 +1361,37 @@ func deleteFile2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-
-	var id int
-	var file_name string
-	for rows.Next() {
-		err := rows.Scan(&id, &file_name)
-		logrus.Infof("fileName:%s", file_name)
-		msg = "Failed to get sql item."
+	g_Mutex.Lock()
+	defer g_Mutex.Unlock()
+	var id int64
+	delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
+	if g_sqlConfig.SqliteFlag {
+		ret, err := g_Db.Exec(delSql)
+		if err != nil {
+			logrus.Errorf("sqlite db inuse:%d", g_Db.Stats().InUse)
+			logrus.Errorf("sqlite delete failed:[%v]", err.Error())
+			response := HttpResponse{false, "delete failed", -1, deleteFile.FileName}
+			bts, err := json.Marshal(response)
+			if err != nil {
+				logrus.Errorf("json marshal failed.")
+				io.WriteString(w, "json marshal failed.")
+				return
+			}
+			io.WriteString(w, string(bts))
+			return
+		}
+		id, err = ret.RowsAffected()
 		if !checkErr(err, msg, w) {
 			return
 		}
-
-		delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
-		g_Db.Query(delSql)
+	} else {
+		_, err = g_Db.Query(delSql)
+		if err != nil {
+			logrus.Errorf("mysql delete failed:[%v]", err.Error())
+		}
 	}
 
-	response := HttpResponse{true, "success", id, file_name}
+	response := HttpResponse{true, "success", int(id), deleteFile.FileName}
 	bts, err := json.Marshal(response)
 	if err != nil {
 		logrus.Errorf("json marshal failed.")

@@ -26,6 +26,7 @@ WebsocketServer/WebsocketServer*
 WebsocketServer/public/uploads/*
 WebsocketServer/public/clients/*
 WebsocketServer/log/*
+WebsocketServer/serverDB.db
 
 WebSocketChatClient.pro.user
 EasyChat.pro.*

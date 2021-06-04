@@ -19,7 +19,7 @@ SET FOREIGN_KEY_CHECKS=0;
 -- Table structure for easy_chat_client
 -- ----------------------------
 DROP TABLE IF EXISTS `easy_chat_client`;
-CREATE TABLE `easy_chat_client` (
+CREATE TABLE IF NOT EXISTS `easy_chat_client` (
   `id` bigint(10) NOT NULL AUTO_INCREMENT,
   `version` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `version_number` int(4) DEFAULT NULL,

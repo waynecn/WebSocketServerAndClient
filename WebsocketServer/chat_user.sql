@@ -19,7 +19,7 @@ SET FOREIGN_KEY_CHECKS=0;
 -- Table structure for chat_user
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_user`;
-CREATE TABLE `chat_user` (
+CREATE TABLE IF NOT EXISTS `chat_user` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `user_name` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `mobile` varchar(20) CHARACTER SET utf8 DEFAULT NULL,
@@ -27,4 +27,4 @@ CREATE TABLE `chat_user` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `modify_time` datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;

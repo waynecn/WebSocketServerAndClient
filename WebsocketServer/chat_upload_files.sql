@@ -19,11 +19,11 @@ SET FOREIGN_KEY_CHECKS=0;
 -- Table structure for chat_upload_files
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_upload_files`;
-CREATE TABLE `chat_upload_files` (
+CREATE TABLE IF NOT EXISTS `chat_upload_files` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `file_name` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `file_size` bigint(20) DEFAULT NULL COMMENT '文件大小',
   `upload_user` varchar(255) CHARACTER SET utf8 DEFAULT NULL COMMENT '上传者',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;

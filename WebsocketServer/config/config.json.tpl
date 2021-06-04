@@ -1,4 +1,5 @@
 {
+    "sqliteFlag":true,
     "host": "localhost",
     "port": 3306,
     "database":"mysql",
