@@ -463,7 +463,7 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
     if (recved == 0 || total == 0) {
         timeLeft = 0;
     } else {
-        timeLeft = (total - recved) * msecTo / recved;
+        timeLeft = qAbs((total - recved) * msecTo / recved);
     }
 
     //计算下载速度
@@ -471,7 +471,7 @@ void MainWindow::OnUploadProgress(qint64 recved, qint64 total) {
     if (msecTo == 0) {
         downloadSpeed = 0;
     } else {
-        downloadSpeed = recved / (msecTo * 1024 / 1000);
+        downloadSpeed = qAbs(recved / (msecTo * 1024 / 1000));
     }
     m_pProgressDialog->SetDownLoadSpeed(downloadSpeed);
 
@@ -492,14 +492,14 @@ void MainWindow::OnDownloadProgress(qint64 recved, qint64 total) {
     QTime curTime = QTime::currentTime();
     int msecTo = m_tStart.msecsTo(curTime);
     //计算下载剩余的内容所需的时间
-    qint64 timeLeft = (total - recved) * msecTo / recved;
+    qint64 timeLeft = qAbs((total - recved) * msecTo / recved);
 
     //计算下载速度
     qint64 downloadSpeed = 0;
     if (msecTo == 0 || recved == 0) {
         downloadSpeed = 0;
     } else {
-        downloadSpeed = recved / (msecTo * 1024 / 1000);
+        downloadSpeed = qAbs(recved / (msecTo * 1024 / 1000));
     }
     m_pProgressDialog->SetDownLoadSpeed(downloadSpeed);
     m_pProgressDialog->SetLeftTime(timeLeft);
