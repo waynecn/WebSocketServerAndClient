@@ -9,6 +9,7 @@ import (
 	"math"
 	"mime"
 	_ "mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -111,6 +112,7 @@ type FileInfo struct {
 	FileName   string
 	FileSize   int
 	UploadUser sql.NullString
+	CreateTime sql.NullTime
 }
 
 type HttpResponse struct {
@@ -294,6 +296,10 @@ func main() {
 	if len(os.Args) >= 3 {
 		port = os.Args[2]
 	}
+	TCPPort, err := strconv.Atoi(port)
+	if err != nil {
+		logrus.Errorf("port to int failed.")
+	}
 	g_strWorkDir = getCurrentDirectory()
 	//Read config
 	configPath := "./config/config.json"
@@ -321,6 +327,10 @@ func main() {
 
 	// Start listening for incoming chat messages
 	go handleMessages()
+
+	// start tcp server
+	TCPPort = TCPPort + 1
+	go handleTCPConnections(TCPPort)
 
 	// Start the server on localhost port 8000 and log any errors
 	logrus.Infof("http server started on :%s", port)
@@ -971,6 +981,171 @@ func handleMessages() {
 	}
 }
 
+func handleTCPConnections(tcpPort int) {
+	logrus.Infof("TCP ready to start on port:%v", tcpPort)
+	listener, err := net.Listen("tcp", "localhost:"+strconv.Itoa(tcpPort))
+	if err != nil {
+		logrus.Errorf("tcp listen on port:%v failed. error message is:%v", tcpPort, err)
+		return
+	}
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			logrus.Errorf("tcp accept failed:%v", err)
+			continue
+		}
+
+		go handleTCPConn(conn)
+	}
+}
+
+func handleTCPConn(conn net.Conn) {
+	//defer conn.Close()
+	buf := make([]byte, 1024*1024)
+	length, err := conn.Read(buf)
+	if err != nil {
+		logrus.Errorf("read from tcp conn failed:%v", err)
+		return
+	}
+
+	if length <= 0 {
+		logrus.Warnf("read nothing at first read.")
+		return
+	}
+
+	//get fileName|fileSize|uploadUser from buf
+	str := string(buf[:])
+	strs := strings.Split(str, "|")
+	if len(strs) < 4 {
+		logrus.Errorf("file info error:%v", strs)
+		return
+	}
+	tcpType := strs[0]
+	if tcpType == "upload" {
+		fileName := strs[1]
+		fileSize, err := strconv.ParseInt(strs[2], 10, 64)
+		if err != nil {
+			logrus.Errorf("parseInt failed.")
+			return
+		}
+		userName := strings.Fields(strs[3])[0]
+		logrus.Infof("fileName:%s, fileSize:%d, userName:%s", fileName, fileSize, userName)
+		uploadProcess(conn, fileName, fileSize, userName)
+	} else if tcpType == "download" {
+		fileName := strs[1]
+		userName := strs[2]
+		downloadProcess(conn, fileName, userName)
+	}
+}
+
+func uploadProcess(conn net.Conn, fileName string, fileSize int64, userName string) {
+	defer conn.Close()
+	curDir := getCurrentDirectory()
+	logrus.Infof("curDir:%s", curDir)
+	dir := curDir + "/public/uploads/"
+	_, err := os.Stat(dir)
+	if err != nil && os.IsNotExist(err) {
+		//目录不存在
+		err = os.MkdirAll(dir, 0777)
+		if err != nil {
+			logrus.Infof("create dir failed:%v", err)
+			return
+		}
+	}
+	fileFullPath := dir + fileName
+	f, err := os.OpenFile(fileFullPath, os.O_CREATE|os.O_TRUNC|os.O_APPEND, 0666)
+	if err != nil {
+		logrus.Errorf("open file:%s failed, error message:%v", fileFullPath, err)
+		return
+	}
+	defer f.Close()
+	defer recordToSql2(fileName, userName, fileSize)
+	var totalSize int64
+	totalSize = 0
+	buf := make([]byte, 1024*1024)
+	for totalSize < fileSize {
+		length, err := conn.Read(buf)
+		if err != nil {
+			break
+		}
+		if length <= 0 {
+			break
+		}
+
+		strLen := strconv.Itoa(length)
+		length64, err := strconv.ParseInt(strLen, 10, 64)
+		temp := buf[0:length]
+
+		wLen, err := f.Write(temp)
+		if err != nil {
+			break
+		}
+
+		tempLen := length
+		for wLen < tempLen {
+			buf = buf[wLen+1:]
+			tempLen = tempLen - wLen
+			wLen, err = f.Write(buf)
+		}
+		totalSize = totalSize + length64
+	}
+	logrus.Infof("upload file:%s by:%s success", fileName, userName)
+}
+
+func downloadProcess(conn net.Conn, fileName string, userName string) {
+	defer conn.Close()
+	curDir := getCurrentDirectory()
+	logrus.Infof("curDir:%s", curDir)
+	dir := curDir + "/public/uploads/"
+	fileFullPath := dir + fileName
+	f, err := os.OpenFile(fileFullPath, os.O_RDONLY, 0666)
+	if err != nil {
+		logrus.Errorf("open file:%s failed, error message:%v", fileFullPath, err)
+		return
+	}
+	defer f.Close()
+	fileInfo, err := f.Stat()
+	if err != nil {
+		logrus.Errorf("read file:%s info failed, error message:%v", fileFullPath, err)
+		return
+	}
+	fileSize := fileInfo.Size()
+	var readSize int64
+	readSize = 0
+	buf := make([]byte, 1024*1024)
+	//send file name and file size to client
+	sendStr := fileName + "|" + strconv.FormatInt(fileSize, 10) + "|donotremove"
+	logrus.Infof("download file info:%s", sendStr)
+	sendBuf := []byte(sendStr)
+	conn.Write(sendBuf)
+	for readSize < fileSize {
+		readLen, err := f.Read(buf)
+		if err != nil {
+			logrus.Errorf("read file:%s failed, error message:%v", fileFullPath, err)
+			return
+		}
+
+		if readLen <= 0 {
+			break
+		}
+
+		tempBuf := buf[0:readLen]
+		writeLen, err := conn.Write(tempBuf)
+		for writeLen < readLen {
+			anotherBuf := tempBuf[writeLen:]
+			anotherWriteLen, err := conn.Write(anotherBuf)
+			if err != nil {
+				return
+			}
+			writeLen += anotherWriteLen
+		}
+		readLen64, err := strconv.ParseInt(strconv.Itoa(readLen), 10, 64)
+		readSize += readLen64
+	}
+	logrus.Infof("user:%s download file:%s success", userName, fileName)
+}
+
 func recordToSql(fileName string) bool {
 	g_Db, err := connectSql()
 	if err != nil {
@@ -1167,7 +1342,7 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer g_Db.Close()
-	strSql := "select file_name,file_size,upload_user from chat_upload_files order by create_time desc;"
+	strSql := "select file_name,file_size,upload_user,create_time from chat_upload_files order by create_time desc;"
 	stmt, err := g_Db.Prepare(strSql)
 	msg = "queryUploadFilesFunction2 Prepare sql failed 1."
 	if !checkErr(err, msg, w) {
@@ -1184,9 +1359,10 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 	var fileName string
 	var fileSize int
 	var uploadUser sql.NullString
+	var createTime sql.NullTime
 	var files []FileInfo
 	for rows.Next() {
-		err := rows.Scan(&fileName, &fileSize, &uploadUser)
+		err := rows.Scan(&fileName, &fileSize, &uploadUser, &createTime)
 		msg = "queryUploadFilesFunction2 Failed to get sql item."
 		if !checkErr(err, msg, w) {
 			return
@@ -1195,6 +1371,7 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		fileInfo.FileName = fileName
 		fileInfo.FileSize = fileSize
 		fileInfo.UploadUser = uploadUser
+		fileInfo.CreateTime = createTime
 		files = append(files, fileInfo)
 	}
 
