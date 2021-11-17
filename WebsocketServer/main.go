@@ -983,7 +983,7 @@ func handleMessages() {
 
 func handleTCPConnections(tcpPort int) {
 	logrus.Infof("TCP ready to start on port:%v", tcpPort)
-	listener, err := net.Listen("tcp", "localhost:"+strconv.Itoa(tcpPort))
+	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(tcpPort))
 	if err != nil {
 		logrus.Errorf("tcp listen on port:%v failed. error message is:%v", tcpPort, err)
 		return
@@ -1054,7 +1054,7 @@ func uploadProcess(conn net.Conn, fileName string, fileSize int64, userName stri
 		}
 	}
 	fileFullPath := dir + fileName
-	f, err := os.OpenFile(fileFullPath, os.O_CREATE|os.O_TRUNC|os.O_APPEND, 0666)
+	f, err := os.OpenFile(fileFullPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
 	if err != nil {
 		logrus.Errorf("open file:%s failed, error message:%v", fileFullPath, err)
 		return
@@ -1064,9 +1064,12 @@ func uploadProcess(conn net.Conn, fileName string, fileSize int64, userName stri
 	var totalSize int64
 	totalSize = 0
 	buf := make([]byte, 1024*1024)
+	errFlag := false
 	for totalSize < fileSize {
 		length, err := conn.Read(buf)
 		if err != nil {
+			logrus.Errorf("socket read message error:%v", err)
+			errFlag = true
 			break
 		}
 		if length <= 0 {
@@ -1079,6 +1082,8 @@ func uploadProcess(conn net.Conn, fileName string, fileSize int64, userName stri
 
 		wLen, err := f.Write(temp)
 		if err != nil {
+			logrus.Errorf("write file error:%v", err)
+			errFlag = true
 			break
 		}
 
@@ -1090,7 +1095,11 @@ func uploadProcess(conn net.Conn, fileName string, fileSize int64, userName stri
 		}
 		totalSize = totalSize + length64
 	}
-	logrus.Infof("upload file:%s by:%s success", fileName, userName)
+	if errFlag {
+		logrus.Infof("upload file:%s by:%s failed", fileName, userName)
+	} else {
+		logrus.Infof("upload file:%s by:%s success", fileName, userName)
+	}
 }
 
 func downloadProcess(conn net.Conn, fileName string, userName string) {
