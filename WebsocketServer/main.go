@@ -32,6 +32,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+
+	"flag"
 )
 
 var clients = make(map[*websocket.Conn]bool) // connected clients
@@ -277,7 +279,10 @@ func connectSql() (*sql.DB, error) {
 	}
 }
 
+var port = flag.String("p", "5133", "服务端口")
+
 func main() {
+	flag.Parse()
 	absDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
@@ -292,13 +297,12 @@ func main() {
 	ConfigLocalFileSystemLogger("./log", "WebSocketServer.log", 30*24*time.Hour, 24*time.Hour)
 
 	logrus.Infof("Use -p xxxx to use the given port xxxx")
-	port := "5133"
-	if len(os.Args) >= 3 {
-		port = os.Args[2]
-	}
-	TCPPort, err := strconv.Atoi(port)
+
+	TCPPort, err := strconv.Atoi(*port)
 	if err != nil {
 		logrus.Errorf("port to int failed.")
+		*port = "5133"
+		TCPPort, _ = strconv.Atoi(*port)
 	}
 	g_strWorkDir = getCurrentDirectory()
 	//Read config
@@ -333,8 +337,8 @@ func main() {
 	go handleTCPConnections(TCPPort)
 
 	// Start the server on localhost port 8000 and log any errors
-	logrus.Infof("http server started on :%s", port)
-	err = http.ListenAndServe(":"+port, nil)
+	logrus.Infof("http server started on :%s", *port)
+	err = http.ListenAndServe(":"+*port, nil)
 	if err != nil {
 		logrus.Errorf("ListenAndServe: %s", err)
 	}
