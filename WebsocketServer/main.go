@@ -1767,7 +1767,7 @@ func lotteryFunc(w http.ResponseWriter, r *http.Request) {
 	var blueBall int64
 	//红区 1-33  6个号码
 	for cnt < 6 {
-		n, err := rand.Int(rand.Reader, big.NewInt(33))
+		n, err := rand.Int(rand.Reader, big.NewInt(34))
 		if err != nil {
 			fmt.Println("rand int error:", err)
 			continue
@@ -1795,7 +1795,7 @@ func lotteryFunc(w http.ResponseWriter, r *http.Request) {
 	//蓝区 1-16 1个号码
 	cnt = 0
 	for cnt < 1 {
-		n, err := rand.Int(rand.Reader, big.NewInt(16))
+		n, err := rand.Int(rand.Reader, big.NewInt(17))
 		if err != nil {
 			fmt.Println("rand int error:", err)
 			continue
