@@ -351,6 +351,9 @@ func main() {
 	c.Start()
 	defer c.Stop()
 
+	//启动服务时先查询一次
+	go queryKjgg()
+
 	// Start the server on localhost port 8000 and log any errors
 	logrus.Infof("http server started on :%s", *port)
 	err = http.ListenAndServe(":"+*port, nil)
@@ -1037,7 +1040,7 @@ func handleTCPConn(conn net.Conn) {
 	str := string(buf[:])
 	strs := strings.Split(str, "|")
 	if len(strs) < 4 {
-		logrus.Errorf("file info error:%v", strs)
+		logrus.Errorf("tcp message error")
 		return
 	}
 	tcpType := strs[0]
