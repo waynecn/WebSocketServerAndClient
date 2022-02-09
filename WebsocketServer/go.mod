@@ -10,6 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
+	github.com/robfig/cron v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	golang.org/x/text v0.3.5
 )
