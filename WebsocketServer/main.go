@@ -334,6 +334,7 @@ func main() {
 	http.HandleFunc("/uploadClient", uploadClient)
 	http.HandleFunc("/lottery", lotteryFunc)
 	http.HandleFunc("/lotteryHistory", lotteryHistoryFunc)
+	http.HandleFunc("/queryKjgg", queryKjggImpl)
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -347,7 +348,7 @@ func main() {
 
 	//准备启动定时器 定时查询开奖公告以及历史开奖公告
 	c := cron.New()
-	c.AddFunc("0 31 21 * * ?", queryKjgg) //每天21点31分
+	c.AddFunc("0 40 21 * * ?", queryKjgg) //每天21点31分
 	c.Start()
 	defer c.Stop()
 
@@ -1902,6 +1903,17 @@ func lotteryHistoryFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(bts))
+}
+
+func queryKjggImpl(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		io.WriteString(w, "只允许GET请求")
+		return
+	}
+
+	go queryKjgg()
+
+	io.WriteString(w, "success")
 }
 
 func qsort(arr []int64, start int, end int) {
