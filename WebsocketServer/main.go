@@ -910,7 +910,7 @@ func broadCastOnline() {
 		}
 
 		var msg StringMessage
-		msg.MessageType = 1
+		msg.MessageType = websocket.TextMessage
 		msg.Message = contents
 		err = client.WriteMessage(msg.MessageType, msg.Message)
 		if err != nil {
@@ -936,6 +936,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	//Whenever a new client was connected, send the online message to all clients
 	broadCastOnline()
 
+	go pingClient(ws)
+
 	for {
 		//var msg Message
 		// Read in a new message as JSON and map it to a Message object
@@ -953,8 +955,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			broadCastOnline()
 			break
 		}
-		// Send the newly received message to the broadcast channel
 		var msg StringMessage
+		// Send the newly received message to the broadcast channel
 		msg.MessageType = messageType
 		msg.Message = p
 		broadcast <- msg
@@ -985,6 +987,21 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 		logrus.Infof("Current online user count:%d", len(onlineusers))
 	}
+}
+
+func pingClient(ws *websocket.Conn) {
+	time.Sleep(10 * time.Second)
+	tryCount := 0
+	for tryCount < 3 {
+		err := ws.WriteMessage(websocket.PingMessage, []byte("ping"))
+		if err != nil {
+			logrus.Errorf("ping client error:%v, tryCount:%d", err, tryCount)
+			tryCount++
+			continue
+		}
+		time.Sleep(10 * time.Second)
+	}
+	ws.Close()
 }
 
 func handleMessages() {
