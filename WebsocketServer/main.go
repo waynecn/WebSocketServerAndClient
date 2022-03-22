@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
-	"math/big"
 	"mime"
 	_ "mime/multipart"
 	"net"
@@ -23,7 +22,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
-	"database/sql"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -31,10 +29,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rifflock/lfshook"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/text/encoding/simplifiedchinese"
-	"golang.org/x/text/transform"
 
-	"crypto/rand"
 	"flag"
 
 	"github.com/robfig/cron"
@@ -50,126 +45,6 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
-}
-
-// Define our message object
-type Message struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Userid   string `json:"userid"`
-	Message  string `json:"message"`
-	Filelink string `json:"filelink"`
-	Image    string `json:"image"`
-}
-
-type StringMessage struct {
-	MessageType int
-	Message     []byte
-}
-
-type LoginUser struct {
-	UserName string
-	Password string
-}
-
-type LoginUser2 struct {
-	UserName      string
-	Password      string
-	ClientVersion string
-}
-
-type RegisterUser struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	Mobile   string `json:"mobile"`
-}
-
-type SqlConfig struct {
-	SqliteFlag bool   `json:"sqliteFlag"`
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	Database   string `json:"database"`
-	UserName   string `json:"username"`
-	Password   string `json:"password"`
-	Charset    string `json:"charset"`
-}
-
-type SqlUser struct {
-	Id         int
-	UserName   string
-	Mobile     string
-	Password   string
-	CreateTime string
-	ModifyTime string
-}
-
-type OnlineSt struct {
-	Userid   string
-	Username string
-}
-
-type OnlineUser struct {
-	Online OnlineSt
-	Addr   string
-}
-
-type FileInfo struct {
-	FileName   string
-	FileSize   int
-	UploadUser sql.NullString
-	CreateTime sql.NullTime
-}
-
-type HttpResponse struct {
-	Success  bool
-	Msg      string
-	Id       int
-	Username string
-}
-
-type FilesResponse struct {
-	Success bool
-	Msg     string
-	Files   []string
-}
-
-type FilesResponse2 struct {
-	Success bool
-	Msg     string
-	Files   []FileInfo
-}
-
-type DeleteFile struct {
-	FileName string
-}
-
-type DeleteFile2 struct {
-	UserName string
-	FileName string
-}
-
-type NewClinetItem struct {
-	NewClient     string
-	UserId        int
-	VersionNumber int
-	FileName      string
-	Md5Value      string
-}
-
-type ClientItem struct {
-	Flag          bool
-	FileName      string
-	Md5Value      string
-	VersionNumber int
-}
-
-type HttpResponse2 struct {
-	Success   bool
-	Msg       string
-	Id        int
-	Username  string
-	NewClient ClientItem
 }
 
 func ConfigLocalFileSystemLogger(logPath string, logFileName string, maxAge time.Duration, rotationTime time.Duration) {
@@ -213,81 +88,12 @@ func ReadConfig(path string) SqlConfig {
 	return g_sqlConfig
 }
 
-func connectSql() (*sql.DB, error) {
-	if g_sqlConfig.SqliteFlag {
-		absDir, err := os.Getwd()
-		if err != nil {
-			fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
-			return nil, err
-		}
-		db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
-		if err != nil {
-			log.Printf("sqlite open failed:[%v]", err.Error())
-			return nil, err
-		}
-		log.Printf("sqlite connect success.")
-		tableSql := `CREATE TABLE IF NOT EXISTS "chat_user" (
-			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
-			"user_name" varchar(255) NULL,
-			"mobile" varchar(20) NULL,
-			"password" varchar(255) NULL,
-			"create_time" TIMESTAMP default (datetime('now', 'localtime')),
-			"modify_time" NULL
-		  );
-		  CREATE TABLE IF NOT EXISTS "easy_chat_client" (
-			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
-			"version" varchar(255) NULL,
-			"version_number" int(4) DEFAULT NULL,
-			"file_name" varchar(255) NULL,
-			"file_size" bigint(12) DEFAULT NULL,
-			"md5" varchar(255) NULL,
-			"upload_time" TIMESTAMP default (datetime('now', 'localtime')),
-			"upload_by" varchar(255) NULL
-		  );
-		  CREATE TABLE IF NOT EXISTS "chat_upload_files" (
-			"id" INTEGER PRIMARY KEY AUTOINCREMENT,
-			"file_name" varchar(255) NULL,
-			"file_size" bigint(20) NULL,
-			"upload_user" varchar(255) NULL,
-			"create_time" TIMESTAMP default (datetime('now', 'localtime'))
-		  );`
-		res, err := db.Exec(tableSql)
-		if err != nil {
-			log.Printf("sqlite create table failed:[%v]", err.Error())
-			return nil, err
-		}
-		id, err := res.LastInsertId()
-		if err != nil {
-			log.Printf("sqlite get LastInsertId failed:[%v]", err.Error())
-			return nil, err
-		}
-		if id > 0 {
-			log.Printf("sqlite create table last insert id:%d", id)
-		}
-
-		return db, nil
-	} else {
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s", g_sqlConfig.UserName,
-			g_sqlConfig.Password,
-			g_sqlConfig.Host,
-			g_sqlConfig.Port,
-			g_sqlConfig.Database,
-			g_sqlConfig.Charset)
-		log.Printf("dsn:%v", dsn)
-		db, err := sql.Open("mysql", dsn)
-		if err != nil {
-			log.Printf("mysql connect failed, detail is [%v]", err.Error())
-			return nil, err
-		}
-		return db, nil
-	}
-}
-
 var port = flag.String("p", "5133", "服务端口")
 
 func main() {
 	flag.Parse()
 
+	initSql()
 	initLotterySqlite()
 
 	absDir, err := os.Getwd()
@@ -324,13 +130,16 @@ func main() {
 	//http request response
 	http.HandleFunc("/uploads", uploadFunction)
 	http.HandleFunc("/uploads2", uploadFunction2)
+	http.HandleFunc("/uploads3", uploadFunction3)
 	http.HandleFunc("/loginnew", loginFunction2)
 	http.HandleFunc("/login", loginFunction)
 	http.HandleFunc("/register", registerFunction)
 	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
 	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)
+	http.HandleFunc("/uploadfiles3", queryUploadFilesFunction3)
 	http.HandleFunc("/delfile", deleteFile)
 	http.HandleFunc("/delfile2", deleteFile2)
+	http.HandleFunc("/delfile3", deleteFile3)
 	http.HandleFunc("/uploadClient", uploadClient)
 	http.HandleFunc("/lottery", lotteryFunc)
 	http.HandleFunc("/lotteryHistory", lotteryHistoryFunc)
@@ -388,202 +197,220 @@ func checkErr(err error, msg string, w http.ResponseWriter) bool {
 }
 
 func uploadFunction(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		logrus.Infof("invalid request")
-		io.WriteString(w, "invalid request")
-		return
-	}
-
-	contentType := r.Header.Get("Content-Type")
-	contentLen := r.ContentLength
-	logrus.Infof("contentType: %s, contentLen:%s", contentType, contentLen)
-	mediatype, _, err := mime.ParseMediaType(contentType)
+	res := HttpResponse{false, "obselete interface", -1, ""}
+	ret, err := json.Marshal(res)
 	if err != nil {
-		logrus.Errorf("ParseMediaType error: %s", err)
-		w.Write([]byte("ParseMediaType error"))
+		logrus.Errorf("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
 		return
 	}
-	curDir := getCurrentDirectory()
-	logrus.Infof("curDir:%s", curDir)
-	dir := curDir + "/public/uploads"
-	logrus.Infof("mediatype:%s", mediatype)
-	if mediatype == "multipart/form-data" {
-		logrus.Infof("in multipart parsing...")
-		logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
-		if r.MultipartForm != nil {
-			for name, files := range r.MultipartForm.File {
-				logrus.Infof("req.MultipartForm.File,name=:%s files:%s", name, len(files))
-				if len(files) != 1 {
-					w.Write([]byte("too many files"))
-					return
-				}
-				if name == "" {
-					w.Write([]byte("is not FileData"))
-					return
-				}
-				for _, f := range files {
-					handle, err := f.Open()
-					if err != nil {
-						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
-						return
-					}
+	io.WriteString(w, string(ret))
 
-					path := dir + f.Filename
-					dst, _ := os.Create(path)
-					io.Copy(dst, handle)
-					dst.Close()
-					logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
+	// if r.Method != "POST" {
+	// 	logrus.Infof("invalid request")
+	// 	io.WriteString(w, "invalid request")
+	// 	return
+	// }
 
-					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
-				}
-			}
-		} else {
-			reader, err := r.MultipartReader()
-			if err != nil {
-				panic(err)
-			}
-			for {
-				p, err := reader.NextPart()
-				if err == io.EOF {
-					logrus.Infof("EOF break")
-					break
-				}
+	// contentType := r.Header.Get("Content-Type")
+	// contentLen := r.ContentLength
+	// logrus.Infof("contentType: %s, contentLen:%s", contentType, contentLen)
+	// mediatype, _, err := mime.ParseMediaType(contentType)
+	// if err != nil {
+	// 	logrus.Errorf("ParseMediaType error: %s", err)
+	// 	w.Write([]byte("ParseMediaType error"))
+	// 	return
+	// }
+	// curDir := getCurrentDirectory()
+	// logrus.Infof("curDir:%s", curDir)
+	// dir := curDir + "/public/uploads"
+	// logrus.Infof("mediatype:%s", mediatype)
+	// if mediatype == "multipart/form-data" {
+	// 	logrus.Infof("in multipart parsing...")
+	// 	logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
+	// 	if r.MultipartForm != nil {
+	// 		for name, files := range r.MultipartForm.File {
+	// 			logrus.Infof("req.MultipartForm.File,name=:%s files:%s", name, len(files))
+	// 			if len(files) != 1 {
+	// 				w.Write([]byte("too many files"))
+	// 				return
+	// 			}
+	// 			if name == "" {
+	// 				w.Write([]byte("is not FileData"))
+	// 				return
+	// 			}
+	// 			for _, f := range files {
+	// 				handle, err := f.Open()
+	// 				if err != nil {
+	// 					w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
+	// 					return
+	// 				}
 
-				if err != nil {
-					logrus.Infof("reader.NextPart error:%s", err)
-					break
-				}
+	// 				path := dir + f.Filename
+	// 				dst, _ := os.Create(path)
+	// 				io.Copy(dst, handle)
+	// 				dst.Close()
+	// 				logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
 
-				fileName := p.FileName()
-				logrus.Infof("fileName:%s", fileName)
-				if fileName != "" {
-					_, err = os.Stat(dir)
-					if err != nil && os.IsNotExist(err) {
-						//目录不存在
-						err = os.MkdirAll(dir, 0777)
-						if err != nil {
-							logrus.Infof("create dir failed:%s", err)
-							continue
-						}
-					}
-					fo, err := os.Create(dir + "/" + fileName)
-					if err != nil {
-						logrus.Infof("os create file err:%s", err)
-						continue
-					}
-					defer fo.Close()
-					defer recordToSql(fileName)
-					formValue, _ := ioutil.ReadAll(p)
-					fo.Write(formValue)
-				}
-			}
-		}
-	}
+	// 				w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
+	// 			}
+	// 		}
+	// 	} else {
+	// 		reader, err := r.MultipartReader()
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 		for {
+	// 			p, err := reader.NextPart()
+	// 			if err == io.EOF {
+	// 				logrus.Infof("EOF break")
+	// 				break
+	// 			}
 
-	logrus.Infof("***********************************")
+	// 			if err != nil {
+	// 				logrus.Infof("reader.NextPart error:%s", err)
+	// 				break
+	// 			}
 
-	var bts = []byte("success")
-	w.Write(bts)
+	// 			fileName := p.FileName()
+	// 			logrus.Infof("fileName:%s", fileName)
+	// 			if fileName != "" {
+	// 				_, err = os.Stat(dir)
+	// 				if err != nil && os.IsNotExist(err) {
+	// 					//目录不存在
+	// 					err = os.MkdirAll(dir, 0777)
+	// 					if err != nil {
+	// 						logrus.Infof("create dir failed:%s", err)
+	// 						continue
+	// 					}
+	// 				}
+	// 				fo, err := os.Create(dir + "/" + fileName)
+	// 				if err != nil {
+	// 					logrus.Infof("os create file err:%s", err)
+	// 					continue
+	// 				}
+	// 				defer fo.Close()
+	// 				defer recordToSql(fileName)
+	// 				formValue, _ := ioutil.ReadAll(p)
+	// 				fo.Write(formValue)
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// logrus.Infof("***********************************")
+
+	// var bts = []byte("success")
+	// w.Write(bts)
 }
 
 func uploadFunction2(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		logrus.Errorf("invalid request")
-		io.WriteString(w, "invalid request")
-		return
-	}
-
-	contentType := r.Header.Get("Content-Type")
-	contentLen := r.ContentLength
-	userName := r.Header.Get("UserName")
-	logrus.Infof("contentType:%s contentLen:%s user:%s", contentType, contentLen, userName)
-	mediatype, _, err := mime.ParseMediaType(contentType)
+	res := HttpResponse{false, "obselete interface", -1, ""}
+	ret, err := json.Marshal(res)
 	if err != nil {
-		logrus.Errorf("ParseMediaType error:%s", err)
-		w.Write([]byte("ParseMediaType error"))
+		logrus.Errorf("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
 		return
 	}
-	curDir := getCurrentDirectory()
-	logrus.Infof("curDir:%s", curDir)
-	dir := curDir + "/public/uploads"
-	logrus.Infof("mediatype: ", mediatype)
-	if mediatype == "multipart/form-data" {
-		logrus.Infof("in multipart parsing...")
-		logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
-		if r.MultipartForm != nil {
-			for name, files := range r.MultipartForm.File {
-				logrus.Errorf("req.MultipartForm.File,name=:%s files:%s", name, len(files))
-				if len(files) != 1 {
-					w.Write([]byte("too many files"))
-					return
-				}
-				if name == "" {
-					w.Write([]byte("is not FileData"))
-					return
-				}
-				for _, f := range files {
-					handle, err := f.Open()
-					if err != nil {
-						w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
-						return
-					}
+	io.WriteString(w, string(ret))
 
-					path := dir + f.Filename
-					dst, _ := os.Create(path)
-					io.Copy(dst, handle)
-					dst.Close()
-					logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s", f.Filename, float64(contentLen)/1024/1024, path)
+	// if r.Method != "POST" {
+	// 	logrus.Errorf("invalid request")
+	// 	io.WriteString(w, "invalid request")
+	// 	return
+	// }
 
-					w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
-				}
-			}
-		} else {
-			reader, err := r.MultipartReader()
-			if err != nil {
-				panic(err)
-			}
-			for {
-				p, err := reader.NextPart()
-				if err == io.EOF {
-					logrus.Infof("EOF break")
-					break
-				}
+	// contentType := r.Header.Get("Content-Type")
+	// contentLen := r.ContentLength
+	// userName := r.Header.Get("UserName")
+	// logrus.Infof("contentType:%s contentLen:%s user:%s", contentType, contentLen, userName)
+	// mediatype, _, err := mime.ParseMediaType(contentType)
+	// if err != nil {
+	// 	logrus.Errorf("ParseMediaType error:%s", err)
+	// 	w.Write([]byte("ParseMediaType error"))
+	// 	return
+	// }
+	// curDir := getCurrentDirectory()
+	// logrus.Infof("curDir:%s", curDir)
+	// dir := curDir + "/public/uploads"
+	// logrus.Infof("mediatype: ", mediatype)
+	// if mediatype == "multipart/form-data" {
+	// 	logrus.Infof("in multipart parsing...")
+	// 	logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
+	// 	if r.MultipartForm != nil {
+	// 		for name, files := range r.MultipartForm.File {
+	// 			logrus.Errorf("req.MultipartForm.File,name=:%s files:%s", name, len(files))
+	// 			if len(files) != 1 {
+	// 				w.Write([]byte("too many files"))
+	// 				return
+	// 			}
+	// 			if name == "" {
+	// 				w.Write([]byte("is not FileData"))
+	// 				return
+	// 			}
+	// 			for _, f := range files {
+	// 				handle, err := f.Open()
+	// 				if err != nil {
+	// 					w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
+	// 					return
+	// 				}
 
-				if err != nil {
-					logrus.Infof("reader.NextPart error:%s", err)
-					break
-				}
+	// 				path := dir + f.Filename
+	// 				dst, _ := os.Create(path)
+	// 				io.Copy(dst, handle)
+	// 				dst.Close()
+	// 				logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s", f.Filename, float64(contentLen)/1024/1024, path)
 
-				fileName := p.FileName()
-				logrus.Infof("fileName:%s", fileName)
-				if fileName != "" {
-					_, err = os.Stat(dir)
-					if err != nil && os.IsNotExist(err) {
-						//目录不存在
-						err = os.MkdirAll(dir, 0777)
-						if err != nil {
-							logrus.Infof("create dir failed:%s", err)
-							continue
-						}
-					}
-					fo, err := os.Create(dir + "/" + fileName)
-					if err != nil {
-						logrus.Infof("os create file err: ", err)
-						continue
-					}
-					defer fo.Close()
-					defer recordToSql2(fileName, userName, contentLen)
-					formValue, _ := ioutil.ReadAll(p)
-					fo.Write(formValue)
-				}
-			}
-		}
-	}
+	// 				w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
+	// 			}
+	// 		}
+	// 	} else {
+	// 		reader, err := r.MultipartReader()
+	// 		if err != nil {
+	// 			panic(err)
+	// 		}
+	// 		for {
+	// 			p, err := reader.NextPart()
+	// 			if err == io.EOF {
+	// 				logrus.Infof("EOF break")
+	// 				break
+	// 			}
 
-	logrus.Infof("***********************************")
+	// 			if err != nil {
+	// 				logrus.Infof("reader.NextPart error:%s", err)
+	// 				break
+	// 			}
 
-	var bts = []byte("success")
-	w.Write(bts)
+	// 			fileName := p.FileName()
+	// 			logrus.Infof("fileName:%s", fileName)
+	// 			if fileName != "" {
+	// 				_, err = os.Stat(dir)
+	// 				if err != nil && os.IsNotExist(err) {
+	// 					//目录不存在
+	// 					err = os.MkdirAll(dir, 0777)
+	// 					if err != nil {
+	// 						logrus.Infof("create dir failed:%s", err)
+	// 						continue
+	// 					}
+	// 				}
+	// 				fo, err := os.Create(dir + "/" + fileName)
+	// 				if err != nil {
+	// 					logrus.Infof("os create file err: ", err)
+	// 					continue
+	// 				}
+	// 				defer fo.Close()
+	// 				defer recordToSql2(fileName, userName, contentLen)
+	// 				formValue, _ := ioutil.ReadAll(p)
+	// 				fo.Write(formValue)
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	// logrus.Infof("***********************************")
+
+	// var bts = []byte("success")
+	// w.Write(bts)
 }
 
 func loginFunction(w http.ResponseWriter, r *http.Request) {
@@ -1292,346 +1119,382 @@ func recordClient(version string, versionNum int, fileName string, fileSize int6
 }
 
 func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
-	tokens := r.Header["Token"]
-	if tokens == nil {
-		res := HttpResponse{false, "need token", -1, ""}
-		ret, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
-			return
-		}
-		io.WriteString(w, string(ret))
-		return
-	}
-	token := tokens[0]
-	logrus.Infof("queryUploadFilesFunction token:%s", token)
-	if token != "20200101" {
-		res := HttpResponse{false, "Token verify failed.", -1, ""}
-		_, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("queryUploadFilesFunction json marshal failed.")
-			io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
-			return
-		}
-	}
-
-	//check the new user exists or not
-	g_Db, err := connectSql()
-	msg := "connect sql failed"
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer g_Db.Close()
-	strSql := "select file_name from chat_upload_files order by create_time desc;"
-	stmt, err := g_Db.Prepare(strSql)
-	msg = "queryUploadFilesFunction Prepare sql failed 1."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	rows, err := stmt.Query()
-	msg = "queryUploadFilesFunction Query sql failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer rows.Close()
-
-	var fileName string
-	var files []string
-	for rows.Next() {
-		err := rows.Scan(&fileName)
-		msg = "queryUploadFilesFunction Failed to get sql item."
-		if !checkErr(err, msg, w) {
-			return
-		}
-		files = append(files, fileName)
-	}
-
-	response := FilesResponse{true, "success", files}
-	bts, err := json.Marshal(response)
+	res := HttpResponse{false, "obselete interface", -1, ""}
+	ret, err := json.Marshal(res)
 	if err != nil {
-		logrus.Errorf("queryUploadFilesFunction json marshal failed.")
-		io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
+		logrus.Errorf("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
 		return
 	}
-	io.WriteString(w, string(bts))
+	io.WriteString(w, string(ret))
+	//
+	// tokens := r.Header["Token"]
+	// if tokens == nil {
+	// 	res := HttpResponse{false, "need token", -1, ""}
+	// 	ret, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("json marshal failed.")
+	// 		io.WriteString(w, "json marshal failed.")
+	// 		return
+	// 	}
+	// 	io.WriteString(w, string(ret))
+	// 	return
+	// }
+	// token := tokens[0]
+	// logrus.Infof("queryUploadFilesFunction token:%s", token)
+	// if token != "20200101" {
+	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
+	// 	_, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("queryUploadFilesFunction json marshal failed.")
+	// 		io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
+	// 		return
+	// 	}
+	// }
+
+	// //check the new user exists or not
+	// g_Db, err := connectSql()
+	// msg := "connect sql failed"
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer g_Db.Close()
+	// strSql := "select file_name from chat_upload_files order by create_time desc;"
+	// stmt, err := g_Db.Prepare(strSql)
+	// msg = "queryUploadFilesFunction Prepare sql failed 1."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// rows, err := stmt.Query()
+	// msg = "queryUploadFilesFunction Query sql failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer rows.Close()
+
+	// var fileName string
+	// var files []string
+	// for rows.Next() {
+	// 	err := rows.Scan(&fileName)
+	// 	msg = "queryUploadFilesFunction Failed to get sql item."
+	// 	if !checkErr(err, msg, w) {
+	// 		return
+	// 	}
+	// 	files = append(files, fileName)
+	// }
+
+	// response := FilesResponse{true, "success", files}
+	// bts, err := json.Marshal(response)
+	// if err != nil {
+	// 	logrus.Errorf("queryUploadFilesFunction json marshal failed.")
+	// 	io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
+	// 	return
+	// }
+	// io.WriteString(w, string(bts))
 }
 
 func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
-	tokens := r.Header["Token"]
-	if tokens == nil {
-		res := HttpResponse{false, "need token", -1, ""}
-		ret, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
-			io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
-			return
-		}
-		io.WriteString(w, string(ret))
-		return
-	}
-	token := tokens[0]
-	logrus.Infof("queryUploadFilesFunction2 token:%s", token)
-	if token != "20200101" {
-		res := HttpResponse{false, "Token verify failed.", -1, ""}
-		_, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
-			return
-		}
-	}
-
-	//check the new user exists or not
-
-	g_Db, err := connectSql()
-	msg := "connect sql failed"
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer g_Db.Close()
-	strSql := "select file_name,file_size,upload_user,create_time from chat_upload_files order by create_time desc;"
-	stmt, err := g_Db.Prepare(strSql)
-	msg = "queryUploadFilesFunction2 Prepare sql failed 1."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	rows, err := stmt.Query()
-	msg = "queryUploadFilesFunction2 Query sql failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer rows.Close()
-
-	var fileName string
-	var fileSize int
-	var uploadUser sql.NullString
-	var createTime sql.NullTime
-	var files []FileInfo
-	for rows.Next() {
-		err := rows.Scan(&fileName, &fileSize, &uploadUser, &createTime)
-		msg = "queryUploadFilesFunction2 Failed to get sql item."
-		if !checkErr(err, msg, w) {
-			return
-		}
-		var fileInfo FileInfo
-		fileInfo.FileName = fileName
-		fileInfo.FileSize = fileSize
-		fileInfo.UploadUser = uploadUser
-		fileInfo.CreateTime = createTime
-		files = append(files, fileInfo)
-	}
-
-	response := FilesResponse2{true, "success", files}
-	bts, err := json.Marshal(response)
+	res := HttpResponse{false, "obselete interface", -1, ""}
+	ret, err := json.Marshal(res)
 	if err != nil {
-		logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
-		io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
+		logrus.Errorf("json marshal failed.")
+		io.WriteString(w, "json marshal failed.")
 		return
 	}
-	io.WriteString(w, string(bts))
+	io.WriteString(w, string(ret))
+
+	// tokens := r.Header["Token"]
+	// if tokens == nil {
+	// 	res := HttpResponse{false, "need token", -1, ""}
+	// 	ret, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
+	// 		io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
+	// 		return
+	// 	}
+	// 	io.WriteString(w, string(ret))
+	// 	return
+	// }
+	// token := tokens[0]
+	// logrus.Infof("queryUploadFilesFunction2 token:%s", token)
+	// if token != "20200101" {
+	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
+	// 	_, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
+	// 		io.WriteString(w, "json marshal failed.")
+	// 		return
+	// 	}
+	// }
+
+	// //check the new user exists or not
+
+	// g_Db, err := connectSql()
+	// msg := "connect sql failed"
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer g_Db.Close()
+	// strSql := "select file_name,file_size,upload_user,create_time from chat_upload_files order by create_time desc;"
+	// stmt, err := g_Db.Prepare(strSql)
+	// msg = "queryUploadFilesFunction2 Prepare sql failed 1."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// rows, err := stmt.Query()
+	// msg = "queryUploadFilesFunction2 Query sql failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer rows.Close()
+
+	// var fileName string
+	// var fileSize int
+	// var uploadUser sql.NullString
+	// var createTime sql.NullTime
+	// var files []FileInfo
+	// for rows.Next() {
+	// 	err := rows.Scan(&fileName, &fileSize, &uploadUser, &createTime)
+	// 	msg = "queryUploadFilesFunction2 Failed to get sql item."
+	// 	if !checkErr(err, msg, w) {
+	// 		return
+	// 	}
+	// 	var fileInfo FileInfo
+	// 	fileInfo.FileName = fileName
+	// 	fileInfo.FileSize = fileSize
+	// 	fileInfo.UploadUser = uploadUser
+	// 	fileInfo.CreateTime = createTime
+	// 	files = append(files, fileInfo)
+	// }
+
+	// response := FilesResponse2{true, "success", files}
+	// bts, err := json.Marshal(response)
+	// if err != nil {
+	// 	logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
+	// 	io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
+	// 	return
+	// }
+	// io.WriteString(w, string(bts))
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
-	tokens := r.Header["Token"]
-	if tokens == nil {
-		res := HttpResponse{false, "need token", -1, ""}
-		ret, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
-			return
-		}
-		io.WriteString(w, string(ret))
-		return
-	}
-	token := tokens[0]
-	if token != "20200101" {
-		res := HttpResponse{false, "Token verify failed.", -1, ""}
-		_, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
-			return
-		}
-	}
-
-	utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
-	body, err := ioutil.ReadAll(utf8Reader)
-	msg := "delete file ReadAll body failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	var deleteFile DeleteFile
-	err = json.Unmarshal(body, &deleteFile)
-	msg = "delete file json unmarshal failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	//Check username and password from mysql
-
-	g_Db, err := connectSql()
-	msg = "connect sql failed"
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer g_Db.Close()
-	strSql := "select id, file_name from chat_upload_files where file_name=?"
-	stmt, err := g_Db.Prepare(strSql)
-	msg = "Prepare sql failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	rows, err := stmt.Query(deleteFile.FileName)
-	msg = "Query sql failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer rows.Close()
-
-	g_Mutex.Lock()
-	defer g_Mutex.Unlock()
-	var id int
-	var file_name string
-	for rows.Next() {
-		err := rows.Scan(&id, &file_name)
-		logrus.Infof("fileName:%s", file_name)
-		msg = "Failed to get sql item."
-		if !checkErr(err, msg, w) {
-			return
-		}
-
-		delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
-		g_Db.Query(delSql)
-	}
-
-	response := HttpResponse{true, "success", id, file_name}
-	bts, err := json.Marshal(response)
+	res := HttpResponse{false, "obselete interface", -1, ""}
+	ret, err := json.Marshal(res)
 	if err != nil {
 		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
+	io.WriteString(w, string(ret))
 
-	f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
-	err = os.Remove(f)
-	if err != nil {
-		msg = "remove file from disk failed.{}"
-		logrus.Errorf(msg, err)
-	}
-	io.WriteString(w, string(bts))
+	// tokens := r.Header["Token"]
+	// if tokens == nil {
+	// 	res := HttpResponse{false, "need token", -1, ""}
+	// 	ret, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("json marshal failed.")
+	// 		io.WriteString(w, "json marshal failed.")
+	// 		return
+	// 	}
+	// 	io.WriteString(w, string(ret))
+	// 	return
+	// }
+	// token := tokens[0]
+	// if token != "20200101" {
+	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
+	// 	_, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("json marshal failed.")
+	// 		io.WriteString(w, "json marshal failed.")
+	// 		return
+	// 	}
+	// }
+
+	// utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
+	// body, err := ioutil.ReadAll(utf8Reader)
+	// msg := "delete file ReadAll body failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// var deleteFile DeleteFile
+	// err = json.Unmarshal(body, &deleteFile)
+	// msg = "delete file json unmarshal failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// //Check username and password from mysql
+
+	// g_Db, err := connectSql()
+	// msg = "connect sql failed"
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer g_Db.Close()
+	// strSql := "select id, file_name from chat_upload_files where file_name=?"
+	// stmt, err := g_Db.Prepare(strSql)
+	// msg = "Prepare sql failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// rows, err := stmt.Query(deleteFile.FileName)
+	// msg = "Query sql failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer rows.Close()
+
+	// g_Mutex.Lock()
+	// defer g_Mutex.Unlock()
+	// var id int
+	// var file_name string
+	// for rows.Next() {
+	// 	err := rows.Scan(&id, &file_name)
+	// 	logrus.Infof("fileName:%s", file_name)
+	// 	msg = "Failed to get sql item."
+	// 	if !checkErr(err, msg, w) {
+	// 		return
+	// 	}
+
+	// 	delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
+	// 	g_Db.Query(delSql)
+	// }
+
+	// response := HttpResponse{true, "success", id, file_name}
+	// bts, err := json.Marshal(response)
+	// if err != nil {
+	// 	logrus.Errorf("json marshal failed.")
+	// 	io.WriteString(w, "json marshal failed.")
+	// 	return
+	// }
+
+	// f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
+	// err = os.Remove(f)
+	// if err != nil {
+	// 	msg = "remove file from disk failed.{}"
+	// 	logrus.Errorf(msg, err)
+	// }
+	// io.WriteString(w, string(bts))
 }
 
 func deleteFile2(w http.ResponseWriter, r *http.Request) {
-	tokens := r.Header["Token"]
-	if tokens == nil {
-		res := HttpResponse{false, "need token", -1, ""}
-		ret, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
-			return
-		}
-		io.WriteString(w, string(ret))
-		return
-	}
-	token := tokens[0]
-	if token != "20200101" {
-		res := HttpResponse{false, "Token verify failed.", -1, ""}
-		_, err := json.Marshal(res)
-		if err != nil {
-			logrus.Errorf("json marshal failed.")
-			io.WriteString(w, "json marshal failed.")
-			return
-		}
-	}
-
-	utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
-	body, err := ioutil.ReadAll(utf8Reader)
-	msg := "delete file ReadAll body failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	var deleteFile DeleteFile2
-	err = json.Unmarshal(body, &deleteFile)
-	msg = "delete file json unmarshal failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	logrus.Infof("delete file:%s by user:%s", deleteFile.FileName, deleteFile.UserName)
-
-	//Check username and password from mysql
-	g_Db, err := connectSql()
-	msg = "connect sql failed"
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer g_Db.Close()
-	strSql := "select id, file_name from chat_upload_files where file_name=?"
-	stmt, err := g_Db.Prepare(strSql)
-	msg = "Prepare sql failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-
-	rows, err := stmt.Query(deleteFile.FileName)
-	msg = "Query sql failed."
-	if !checkErr(err, msg, w) {
-		return
-	}
-	defer rows.Close()
-	g_Mutex.Lock()
-	defer g_Mutex.Unlock()
-	var id int64
-	delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
-	if g_sqlConfig.SqliteFlag {
-		ret, err := g_Db.Exec(delSql)
-		if err != nil {
-			logrus.Errorf("sqlite db inuse:%d", g_Db.Stats().InUse)
-			logrus.Errorf("sqlite delete failed:[%v]", err.Error())
-			response := HttpResponse{false, "delete failed", -1, deleteFile.FileName}
-			bts, err := json.Marshal(response)
-			if err != nil {
-				logrus.Errorf("json marshal failed.")
-				io.WriteString(w, "json marshal failed.")
-				return
-			}
-			io.WriteString(w, string(bts))
-			return
-		}
-		id, err = ret.RowsAffected()
-		if !checkErr(err, msg, w) {
-			return
-		}
-	} else {
-		_, err = g_Db.Query(delSql)
-		if err != nil {
-			logrus.Errorf("mysql delete failed:[%v]", err.Error())
-		}
-	}
-
-	response := HttpResponse{true, "success", int(id), deleteFile.FileName}
-	bts, err := json.Marshal(response)
+	res := HttpResponse{false, "obselete interface", -1, ""}
+	ret, err := json.Marshal(res)
 	if err != nil {
 		logrus.Errorf("json marshal failed.")
 		io.WriteString(w, "json marshal failed.")
 		return
 	}
+	io.WriteString(w, string(ret))
 
-	f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
-	err = os.Remove(f)
-	if err != nil {
-		msg = "remove file from disk failed.%v"
-		logrus.Errorf(msg, err)
-	}
-	io.WriteString(w, string(bts))
+	// tokens := r.Header["Token"]
+	// if tokens == nil {
+	// 	res := HttpResponse{false, "need token", -1, ""}
+	// 	ret, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("json marshal failed.")
+	// 		io.WriteString(w, "json marshal failed.")
+	// 		return
+	// 	}
+	// 	io.WriteString(w, string(ret))
+	// 	return
+	// }
+	// token := tokens[0]
+	// if token != "20200101" {
+	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
+	// 	_, err := json.Marshal(res)
+	// 	if err != nil {
+	// 		logrus.Errorf("json marshal failed.")
+	// 		io.WriteString(w, "json marshal failed.")
+	// 		return
+	// 	}
+	// }
+
+	// utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
+	// body, err := ioutil.ReadAll(utf8Reader)
+	// msg := "delete file ReadAll body failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// var deleteFile DeleteFile2
+	// err = json.Unmarshal(body, &deleteFile)
+	// msg = "delete file json unmarshal failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// logrus.Infof("delete file:%s by user:%s", deleteFile.FileName, deleteFile.UserName)
+
+	// //Check username and password from mysql
+	// g_Db, err := connectSql()
+	// msg = "connect sql failed"
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer g_Db.Close()
+	// strSql := "select id, file_name from chat_upload_files where file_name=?"
+	// stmt, err := g_Db.Prepare(strSql)
+	// msg = "Prepare sql failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+
+	// rows, err := stmt.Query(deleteFile.FileName)
+	// msg = "Query sql failed."
+	// if !checkErr(err, msg, w) {
+	// 	return
+	// }
+	// defer rows.Close()
+	// g_Mutex.Lock()
+	// defer g_Mutex.Unlock()
+	// var id int64
+	// delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
+	// if g_sqlConfig.SqliteFlag {
+	// 	ret, err := g_Db.Exec(delSql)
+	// 	if err != nil {
+	// 		logrus.Errorf("sqlite db inuse:%d", g_Db.Stats().InUse)
+	// 		logrus.Errorf("sqlite delete failed:[%v]", err.Error())
+	// 		response := HttpResponse{false, "delete failed", -1, deleteFile.FileName}
+	// 		bts, err := json.Marshal(response)
+	// 		if err != nil {
+	// 			logrus.Errorf("json marshal failed.")
+	// 			io.WriteString(w, "json marshal failed.")
+	// 			return
+	// 		}
+	// 		io.WriteString(w, string(bts))
+	// 		return
+	// 	}
+	// 	id, err = ret.RowsAffected()
+	// 	if !checkErr(err, msg, w) {
+	// 		return
+	// 	}
+	// } else {
+	// 	_, err = g_Db.Query(delSql)
+	// 	if err != nil {
+	// 		logrus.Errorf("mysql delete failed:[%v]", err.Error())
+	// 	}
+	// }
+
+	// response := HttpResponse{true, "success", int(id), deleteFile.FileName}
+	// bts, err := json.Marshal(response)
+	// if err != nil {
+	// 	logrus.Errorf("json marshal failed.")
+	// 	io.WriteString(w, "json marshal failed.")
+	// 	return
+	// }
+
+	// f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
+	// err = os.Remove(f)
+	// if err != nil {
+	// 	msg = "remove file from disk failed.%v"
+	// 	logrus.Errorf(msg, err)
+	// }
+	// io.WriteString(w, string(bts))
 }
 
 func uploadClient(w http.ResponseWriter, r *http.Request) {
@@ -1773,511 +1636,4 @@ func getVersionNumber(version string) int {
 
 	logrus.Errorf("getVersionNumber end...:%d", versionNumber)
 	return versionNumber
-}
-
-type Lotterys struct {
-	Id            int            `json:"id"`
-	Lottery       string         `json:"lottery"`
-	CreateTime    sql.NullTime   `json:"create_time"`
-	Code          sql.NullString `json:"code"`
-	DetailsLink   string         `json:"detailsLink"`
-	VideoLink     string         `json:"videoLink"`
-	Date          sql.NullString `json:"date"`
-	Week          string         `json:"week"`
-	Red           sql.NullString `json:"red"`
-	Blue          sql.NullString `json:"blue"`
-	Sales         string         `json:"sales"`
-	PoolMoney     string         `json:"poolmoney"`
-	Content       string         `json:"content"`
-	MyPrizeGrade  sql.NullInt32  `json:"myPrizeGrade"`
-	CreateTimeStr string         `json:"create_time_str"`
-	RedCount      sql.NullInt32
-	BlueCount     sql.NullInt32
-}
-
-type KjggData struct {
-	State     int        `json:"state"`
-	Message   string     `json:"message"`
-	PageCount int        `json:"pageCount"`
-	CountNum  int        `json:"countNum"`
-	TFlag     int        `json:"Tflag"`
-	Result    []KjggItem `json:"result"`
-}
-
-type KjggItem struct {
-	Name        string            `json:"name"`
-	Code        string            `json:"code"`
-	DetailsLink string            `json:"detailsLink"`
-	VideoLink   string            `json:"videoLink"`
-	Date        string            `json:"date"`
-	Week        string            `json:"week"`
-	Red         string            `json:"red"`
-	Blue        string            `json:"blue"`
-	Sales       string            `json:"sales"`
-	PoolMoney   string            `json:"poolmoney"`
-	Content     string            `json:"content"`
-	AddMoney    string            `json:"addmoney"`
-	AddMoney2   string            `json:"addmoney2"`
-	Msg         string            `json:"msg"`
-	Z2Add       string            `json:"z2add"`
-	M2Add       string            `json:"m2add"`
-	PrizeGrades []PrizeGradesItem `json:"prizegrades"`
-}
-
-type PrizeGradesItem struct {
-	Type      int    `json:"type"`
-	TypeNum   string `json:"typenum"`
-	TypeMoney string `json:"typemoney"`
-}
-
-var db *sql.DB
-var kjggUrl = "http://www.cwl.gov.cn/cwl_admin/front/cwlkj/search/kjxx/findDrawNotice?name=ssq&issueCount=30"
-
-func lotteryFunc(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		io.WriteString(w, "只允许POST请求")
-		return
-	}
-
-	var cnt = 0
-	var redBalls []int64
-	var blueBall int64
-	//红区 1-33  6个号码
-	for cnt < 6 {
-		n, err := rand.Int(rand.Reader, big.NewInt(34))
-		if err != nil {
-			fmt.Println("rand int error:", err)
-			continue
-		}
-		if n.Int64() == 0 {
-			continue
-		}
-		//排除重复数字
-		regenerate := false
-		for i := 0; i < len(redBalls); i++ {
-			if redBalls[i] == n.Int64() {
-				regenerate = true
-				break
-			}
-		}
-		if regenerate {
-			continue
-		}
-		cnt += 1
-		redBalls = append(redBalls, n.Int64())
-	}
-
-	qsort(redBalls, 0, len(redBalls)-1)
-
-	//蓝区 1-16 1个号码
-	cnt = 0
-	for cnt < 1 {
-		n, err := rand.Int(rand.Reader, big.NewInt(17))
-		if err != nil {
-			fmt.Println("rand int error:", err)
-			continue
-		}
-		if n.Int64() == 0 {
-			continue
-		}
-		cnt += 1
-		blueBall = n.Int64()
-	}
-
-	var resultStr string
-	for index := range redBalls {
-		redStr := strconv.FormatInt(redBalls[index], 10)
-		if len(redStr) < 2 {
-			redStr = "0" + redStr //单数补0
-		}
-		resultStr += redStr + " "
-	}
-
-	blueStr := strconv.FormatInt(blueBall, 10)
-	if len(blueStr) < 2 {
-		blueStr = "0" + blueStr //单数补0
-	}
-	resultStr += blueStr
-
-	//将生成结果保存到sqlite数据库中
-	record(resultStr)
-
-	var bts = []byte(resultStr)
-	w.Write(bts)
-}
-
-func lotteryHistoryFunc(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		io.WriteString(w, "只允许POST请求")
-		return
-	}
-
-	results := getRecord()
-
-	bts, err := json.Marshal(results)
-	if err != nil {
-		io.WriteString(w, "序列化查询结果失败")
-		return
-	}
-	io.WriteString(w, string(bts))
-}
-
-func queryKjggImpl(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		io.WriteString(w, "只允许GET请求")
-		return
-	}
-
-	go queryKjgg()
-
-	io.WriteString(w, "success")
-}
-
-func qsort(arr []int64, start int, end int) {
-	if start >= end {
-		return
-	}
-
-	key := start
-	value := arr[start]
-	for n := start + 1; n <= end; n++ {
-		if arr[n] < value {
-			arr[key] = arr[n]
-			arr[n] = arr[key+1]
-			key++
-		}
-	}
-
-	arr[key] = value
-
-	qsort(arr, start, key-1)
-	qsort(arr, key+1, end)
-}
-
-func initLotterySqlite() {
-	absDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
-		return
-	}
-	db, err = sql.Open("sqlite3", absDir+"/serverDB.db")
-	if err != nil {
-		fmt.Printf("sqlite open failed:[%v]", err.Error())
-		return
-	}
-	defer db.Close()
-
-	tableSql := `CREATE TABLE IF NOT EXISTS "lottery" (
-		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
-		"lottery" varchar(32) NULL,
-		"create_time" TIMESTAMP default (datetime('now', 'localtime')),
-		"code" varchar(8) NULL,
-		"details_link" varchar(64) NULL,
-		"video_link" varchar(64) NULL,
-		"date" varchar(32) NULL,
-		"week" varchar(8) NULL,
-		"red" varchar(16) NULL,
-		"blue" varchar(8) NULL,
-		"sales" varchar(16) NULL,
-		"pool_money" varchar(16) NULL,
-		"content" varchar(255) NULL,
-		"my_prize_grade" tinyint(2) NULL,
-		"red_count" tinyint(2) NULL,
-		"blue_count" tinyint(2) NULL
-	  );`
-	_, err = db.Exec(tableSql)
-	if err != nil {
-		fmt.Println("初始化表格失败:", err)
-		panic(err)
-	}
-}
-
-func record(str string) {
-	absDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
-		return
-	}
-	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
-	if err != nil {
-		fmt.Printf("sqlite open failed:[%v]", err.Error())
-		return
-	}
-	defer db.Close()
-
-	insertStr := "insert into lottery (lottery) values(?);"
-	stmt, err := db.Prepare(insertStr)
-	if err != nil {
-		fmt.Println("Prepare error:", err)
-		return
-	}
-	res, err := stmt.Exec(str)
-	if err != nil {
-		fmt.Println("Exec error:", err)
-		return
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		fmt.Println("LastInsertId error:", err)
-		return
-	}
-	fmt.Println("新增id:", id)
-}
-
-func getRecord() []Lotterys {
-	absDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
-		return nil
-	}
-	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
-	if err != nil {
-		fmt.Printf("sqlite open failed:[%v]", err.Error())
-		return nil
-	}
-	defer db.Close()
-
-	querySql := "select id, lottery, create_time,code, date, red, blue, my_prize_grade from lottery order by create_time desc;"
-	stmt, err := db.Prepare(querySql)
-	if err != nil {
-		fmt.Println("Prepare error:", err)
-		return nil
-	}
-	rows, err := stmt.Query()
-	if err != nil {
-		fmt.Println("query error:", err)
-		return nil
-	}
-	defer rows.Close()
-
-	var results []Lotterys
-	for rows.Next() {
-		var item Lotterys
-		err = rows.Scan(&item.Id, &item.Lottery, &item.CreateTime, &item.Code, &item.Date, &item.Red, &item.Blue, &item.MyPrizeGrade)
-		if err != nil {
-			fmt.Println("Scan error:", err)
-			continue
-		}
-
-		if item.Red.Valid {
-			item.Red.String = strings.Replace(item.Red.String, ",", " ", -1)
-		}
-		if item.CreateTime.Valid {
-			item.CreateTimeStr = item.CreateTime.Time.Format("2006-01-02 15:04:05")
-		}
-		results = append(results, item)
-	}
-	return results
-}
-
-func queryKjgg() {
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	req, err := http.NewRequest("GET", kjggUrl, nil)
-	if err != nil {
-		return
-	}
-	req.Header.Add("Referer", "http://www.cwl.gov.cn/ygkj/kjgg/")
-	req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36")
-	req.Header.Add("X-Requested-With", "XMLHttpRequest")
-	req.Header.Add("Accept", "application/json, text/javascript, */*; q=0.01")
-	req.Header.Add("Host", "www.cwl.gov.cn")
-	req.Header.Add("Cookie", "_ga=GA1.3.1940681231.1595247885; HMF_CI=a9decaf585b61e962b2d7563d6120430c8baebe64c03b6b525f7807d8433cad4e4; 21_vq=15")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	result, _ := ioutil.ReadAll(resp.Body)
-
-	var kjggData KjggData
-	err = json.Unmarshal(result, &kjggData)
-	if err != nil {
-		fmt.Println("结构化开奖公告结果发生错误:", err)
-		return
-	}
-	for i := 0; i < len(kjggData.Result); i++ {
-		//开奖日期
-		kjDate := kjggData.Result[i].Date[:strings.Index(kjggData.Result[i].Date, "(")]
-		fullKjDate := kjDate + " 21:30:00"
-		if (i + 1) < len(kjggData.Result) {
-			prevDate := kjggData.Result[i+1].Date[:strings.Index(kjggData.Result[i+1].Date, "(")]
-			fullPrevDate := prevDate + " 21:30:00"
-			results := getLotteryRecord(fullPrevDate, fullKjDate)
-			for j := 0; j < len(results); j++ {
-				item := results[j]
-				item.Code = sql.NullString{kjggData.Result[i].Code, true}
-				item.DetailsLink = kjggData.Result[i].DetailsLink
-				item.VideoLink = kjggData.Result[i].VideoLink
-				item.Date = sql.NullString{kjggData.Result[i].Date, true}
-				item.Week = kjggData.Result[i].Week
-				item.Red = sql.NullString{kjggData.Result[i].Red, true}
-				item.Blue = sql.NullString{kjggData.Result[i].Blue, true}
-				item.Sales = kjggData.Result[i].Sales
-				item.PoolMoney = kjggData.Result[i].PoolMoney
-				item.Content = kjggData.Result[i].Content
-				redCount, blueCount, prizeGrade := calcMyPrizeGrade(item.Lottery, kjggData.Result[i].Red, kjggData.Result[i].Blue)
-				item.MyPrizeGrade = sql.NullInt32{int32(prizeGrade), true}
-				item.RedCount = sql.NullInt32{int32(redCount), true}
-				item.BlueCount = sql.NullInt32{int32(blueCount), true}
-				updateMyRecord(item)
-			}
-		}
-	}
-}
-
-//根据日期查询居于两个开奖公告之间的号码记录 并用于后续更新开奖结果到数据库中
-func getLotteryRecord(startDate string, endDate string) []Lotterys {
-	absDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
-		return nil
-	}
-	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
-	if err != nil {
-		fmt.Printf("sqlite open failed:[%v]", err.Error())
-		return nil
-	}
-	defer db.Close()
-
-	querySql := `select id, lottery from lottery where my_prize_grade is null and create_time between ? and ? order by create_time desc;`
-
-	stmt, err := db.Prepare(querySql)
-	if err != nil {
-		fmt.Println("Prepare error:", err)
-		return nil
-	}
-	rows, err := stmt.Query(startDate, endDate)
-	if err != nil {
-		fmt.Println("query error:", err)
-		return nil
-	}
-	defer rows.Close()
-
-	var results []Lotterys
-	for rows.Next() {
-		var item Lotterys
-		err = rows.Scan(&item.Id, &item.Lottery)
-		if err != nil {
-			fmt.Println("Scan error:", err)
-			continue
-		}
-
-		results = append(results, item)
-	}
-	return results
-}
-
-//根据开奖结果计算号码是几等奖 返回：红球匹配数量 篮球匹配数量 几等奖
-func calcMyPrizeGrade(myCode string, red string, blue string) (int, int, int) {
-	myNumbers := strings.Split(myCode, " ") //红蓝一起 最后一个是蓝球
-	redBalls := strings.Split(red, ",")     //开奖红球数组
-	redCount := 0
-	prizeGrade := 7
-	for i := 0; i < 6; i++ {
-		myRedBall, err := strconv.Atoi(myNumbers[i])
-		if err != nil {
-			fmt.Println("将号码转为int错误:", err)
-			continue
-		}
-		for j := 0; j < 6; j++ {
-			theirRedBall, err := strconv.Atoi(redBalls[j])
-			if err != nil {
-				fmt.Println("将号码转为int错误2:", err)
-				continue
-			}
-			if myRedBall == theirRedBall {
-				redCount++
-				break
-			}
-		}
-	}
-
-	myBlueBall, err := strconv.Atoi(myNumbers[6])
-	if err != nil {
-		fmt.Println("将我的蓝球转为int时错误:", err)
-		return redCount, 0, prizeGrade
-	}
-	theirBlueBall, err := strconv.Atoi(blue)
-	if err != nil {
-		fmt.Println("将结果蓝球转为int时错误:", err)
-		return redCount, 0, prizeGrade
-	}
-	blueFlag := false
-	if myBlueBall == theirBlueBall {
-		blueFlag = true
-	}
-
-	//根据红球 蓝球数量计算双色球属于几等奖
-	if redCount == 6 {
-		if blueFlag {
-			prizeGrade = 1
-		} else {
-			prizeGrade = 2
-		}
-	} else if redCount == 5 {
-		if blueFlag {
-			prizeGrade = 3
-		} else {
-			prizeGrade = 4
-		}
-	} else if redCount == 4 {
-		if blueFlag {
-			prizeGrade = 4
-		} else {
-			prizeGrade = 5
-		}
-	} else if redCount <= 3 {
-		if blueFlag && redCount == 3 {
-			prizeGrade = 5
-		} else if blueFlag {
-			prizeGrade = 6
-		} else {
-			prizeGrade = 7
-		}
-	}
-	blueCount := 0
-	if blueFlag {
-		blueCount = 1
-	}
-	return redCount, blueCount, prizeGrade
-}
-
-func updateMyRecord(item Lotterys) {
-	fmt.Println("Id:", item.Id, " 号码", item.Lottery, " ", item.MyPrizeGrade, " 等奖")
-	absDir, err := os.Getwd()
-	if err != nil {
-		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
-		return
-	}
-	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
-	if err != nil {
-		fmt.Printf("sqlite open failed:[%v]", err.Error())
-		return
-	}
-	defer db.Close()
-
-	updateStr := `update lottery set code=?,details_link=?,video_link=?,date=?,week=?,red=?,blue=?,
-		sales=?,pool_money=?,content=?,my_prize_grade=?,red_count=?,blue_count=? where id=?;`
-	stmt, err := db.Prepare(updateStr)
-	if err != nil {
-		fmt.Println("prepare update sql:", updateStr, " 错误:", err)
-		return
-	}
-
-	ret, err := stmt.Exec(item.Code, item.DetailsLink, item.VideoLink, item.Date, item.Week, item.Red, item.Blue,
-		item.Sales, item.PoolMoney, item.Content, item.MyPrizeGrade, item.RedCount, item.BlueCount, item.Id)
-	if err != nil {
-		fmt.Println("执行更新出错:", err)
-		return
-	}
-
-	_, err = ret.RowsAffected()
-	if err != nil {
-		fmt.Println("更新ID:", item.Id, " 失败")
-		return
-	}
-	fmt.Println("更新id:", item.Id, "成功")
 }

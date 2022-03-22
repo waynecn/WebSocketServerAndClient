@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS `chat_upload_files` (
   `file_name` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
   `file_size` bigint(20) DEFAULT NULL COMMENT '文件大小',
   `upload_user` varchar(255) CHARACTER SET utf8 DEFAULT NULL COMMENT '上传者',
+  `user_id` int(11) DEFAULT NULL COMMENT '上传者ID',
+  `to_user_id` int(11) DEFAULT NULL COMMENT '发送给指定用户的用户ID',
+  `file_md5`  varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '文件的MD5值',
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
