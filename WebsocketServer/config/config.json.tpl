@@ -4,6 +4,6 @@
     "port": 3306,
     "database":"mysql",
     "username": "root",
-    "password":"624324188",
+    "password":"123456",
     "charset":"utf8"
 }
