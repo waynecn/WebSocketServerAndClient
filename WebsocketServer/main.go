@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 
+	jwt "github.com/golang-jwt/jwt"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
@@ -90,6 +91,61 @@ func ReadConfig(path string) SqlConfig {
 
 var port = flag.String("p", "5133", "服务端口")
 
+func middlewareHandler(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths := strings.Split(r.RequestURI, "/")
+		endPaths := paths[len(paths)-1]
+		purePaths := strings.Split(endPaths, "?")
+		purePath := purePaths[len(purePaths)-1]
+		if purePath == "loginnew" || purePath == "lotteryHistory" ||
+			purePath == "lottery" || purePath == "register" {
+			h.ServeHTTP(w, r)
+			return
+		}
+		if r.Header.Get("Authorization") == "" {
+			msg := "Need token"
+			err := errors.New(msg)
+			checkErr(err, msg, w)
+		} else {
+			tokenString := r.Header.Get("Authorization")
+			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				return []byte(APP_KEY), nil
+			})
+			if err != nil {
+				msg := "token verify failed."
+				checkErr(err, msg, w)
+				return
+			}
+			if token.Valid {
+				h.ServeHTTP(w, r)
+			} else if ve, ok := err.(*jwt.ValidationError); ok {
+				if ve.Errors&jwt.ValidationErrorMalformed != 0 {
+					msg := "That's not even a token"
+					err := errors.New(msg)
+					checkErr(err, msg, w)
+					return
+				} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
+					// Token is either expired or not active yet
+					msg := "token has expired."
+					err := errors.New(msg)
+					checkErr(err, msg, w)
+					return
+				} else {
+					msg := "Couldn't handle this token."
+					err := errors.New(msg)
+					checkErr(err, msg, w)
+					return
+				}
+			} else {
+				msg := "Couldn't handle this token."
+				err := errors.New(msg)
+				checkErr(err, msg, w)
+				return
+			}
+		}
+	})
+}
+
 func main() {
 	flag.Parse()
 
@@ -127,23 +183,22 @@ func main() {
 	fs := http.FileServer(http.Dir("./public"))
 	http.Handle("/", fs)
 
-	//http request response
-	http.HandleFunc("/uploads", uploadFunction)
-	http.HandleFunc("/uploads2", uploadFunction2)
-	http.HandleFunc("/uploads3", uploadFunction3)
-	http.HandleFunc("/loginnew", loginFunction2)
-	http.HandleFunc("/login", loginFunction)
-	http.HandleFunc("/register", registerFunction)
-	http.HandleFunc("/uploadfiles", queryUploadFilesFunction)
-	http.HandleFunc("/uploadfiles2", queryUploadFilesFunction2)
-	http.HandleFunc("/uploadfiles3", queryUploadFilesFunction3)
-	http.HandleFunc("/delfile", deleteFile)
-	http.HandleFunc("/delfile2", deleteFile2)
-	http.HandleFunc("/delfile3", deleteFile3)
-	http.HandleFunc("/uploadClient", uploadClient)
-	http.HandleFunc("/lottery", lotteryFunc)
-	http.HandleFunc("/lotteryHistory", lotteryHistoryFunc)
-	http.HandleFunc("/queryKjgg", queryKjggImpl)
+	http.Handle("/uploads", middlewareHandler(http.HandlerFunc(uploadFunction)))
+	http.Handle("/uploads2", middlewareHandler(http.HandlerFunc(uploadFunction2)))
+	http.Handle("/uploads3", middlewareHandler(http.HandlerFunc(uploadFunction3)))
+	http.Handle("/loginnew", middlewareHandler(http.HandlerFunc(loginFunction2)))
+	http.Handle("/login", middlewareHandler(http.HandlerFunc(loginFunction)))
+	http.Handle("/register", middlewareHandler(http.HandlerFunc(registerFunction)))
+	http.Handle("/uploadfiles", middlewareHandler(http.HandlerFunc(queryUploadFilesFunction)))
+	http.Handle("/uploadfiles2", middlewareHandler(http.HandlerFunc(queryUploadFilesFunction2)))
+	http.Handle("/uploadfiles3", middlewareHandler(http.HandlerFunc(queryUploadFilesFunction3)))
+	http.Handle("/delfile", middlewareHandler(http.HandlerFunc(deleteFile)))
+	http.Handle("/delfile2", middlewareHandler(http.HandlerFunc(deleteFile2)))
+	http.Handle("/delfile3", middlewareHandler(http.HandlerFunc(deleteFile3)))
+	http.Handle("/uploadClient", middlewareHandler(http.HandlerFunc(uploadClient)))
+	http.Handle("/lottery", middlewareHandler(http.HandlerFunc(lotteryFunc)))
+	http.Handle("/lotteryHistory", middlewareHandler(http.HandlerFunc(lotteryHistoryFunc)))
+	http.Handle("/queryKjgg", middlewareHandler(http.HandlerFunc(queryKjggImpl)))
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
@@ -182,7 +237,7 @@ func getCurrentDirectory() string {
 
 func checkErr(err error, msg string, w http.ResponseWriter) bool {
 	if err != nil {
-		response := HttpResponse{false, msg + err.Error(), -1, ""}
+		response := HttpResponse{false, msg + ":" + err.Error(), -1, ""}
 		bts, err := json.Marshal(response)
 		if err != nil {
 			logrus.Infof("json marshal failed.")
@@ -205,103 +260,6 @@ func uploadFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(ret))
-
-	// if r.Method != "POST" {
-	// 	logrus.Infof("invalid request")
-	// 	io.WriteString(w, "invalid request")
-	// 	return
-	// }
-
-	// contentType := r.Header.Get("Content-Type")
-	// contentLen := r.ContentLength
-	// logrus.Infof("contentType: %s, contentLen:%s", contentType, contentLen)
-	// mediatype, _, err := mime.ParseMediaType(contentType)
-	// if err != nil {
-	// 	logrus.Errorf("ParseMediaType error: %s", err)
-	// 	w.Write([]byte("ParseMediaType error"))
-	// 	return
-	// }
-	// curDir := getCurrentDirectory()
-	// logrus.Infof("curDir:%s", curDir)
-	// dir := curDir + "/public/uploads"
-	// logrus.Infof("mediatype:%s", mediatype)
-	// if mediatype == "multipart/form-data" {
-	// 	logrus.Infof("in multipart parsing...")
-	// 	logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
-	// 	if r.MultipartForm != nil {
-	// 		for name, files := range r.MultipartForm.File {
-	// 			logrus.Infof("req.MultipartForm.File,name=:%s files:%s", name, len(files))
-	// 			if len(files) != 1 {
-	// 				w.Write([]byte("too many files"))
-	// 				return
-	// 			}
-	// 			if name == "" {
-	// 				w.Write([]byte("is not FileData"))
-	// 				return
-	// 			}
-	// 			for _, f := range files {
-	// 				handle, err := f.Open()
-	// 				if err != nil {
-	// 					w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
-	// 					return
-	// 				}
-
-	// 				path := dir + f.Filename
-	// 				dst, _ := os.Create(path)
-	// 				io.Copy(dst, handle)
-	// 				dst.Close()
-	// 				logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s \n", f.Filename, float64(contentLen)/1024/1024, path)
-
-	// 				w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
-	// 			}
-	// 		}
-	// 	} else {
-	// 		reader, err := r.MultipartReader()
-	// 		if err != nil {
-	// 			panic(err)
-	// 		}
-	// 		for {
-	// 			p, err := reader.NextPart()
-	// 			if err == io.EOF {
-	// 				logrus.Infof("EOF break")
-	// 				break
-	// 			}
-
-	// 			if err != nil {
-	// 				logrus.Infof("reader.NextPart error:%s", err)
-	// 				break
-	// 			}
-
-	// 			fileName := p.FileName()
-	// 			logrus.Infof("fileName:%s", fileName)
-	// 			if fileName != "" {
-	// 				_, err = os.Stat(dir)
-	// 				if err != nil && os.IsNotExist(err) {
-	// 					//目录不存在
-	// 					err = os.MkdirAll(dir, 0777)
-	// 					if err != nil {
-	// 						logrus.Infof("create dir failed:%s", err)
-	// 						continue
-	// 					}
-	// 				}
-	// 				fo, err := os.Create(dir + "/" + fileName)
-	// 				if err != nil {
-	// 					logrus.Infof("os create file err:%s", err)
-	// 					continue
-	// 				}
-	// 				defer fo.Close()
-	// 				defer recordToSql(fileName)
-	// 				formValue, _ := ioutil.ReadAll(p)
-	// 				fo.Write(formValue)
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// logrus.Infof("***********************************")
-
-	// var bts = []byte("success")
-	// w.Write(bts)
 }
 
 func uploadFunction2(w http.ResponseWriter, r *http.Request) {
@@ -313,104 +271,6 @@ func uploadFunction2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(ret))
-
-	// if r.Method != "POST" {
-	// 	logrus.Errorf("invalid request")
-	// 	io.WriteString(w, "invalid request")
-	// 	return
-	// }
-
-	// contentType := r.Header.Get("Content-Type")
-	// contentLen := r.ContentLength
-	// userName := r.Header.Get("UserName")
-	// logrus.Infof("contentType:%s contentLen:%s user:%s", contentType, contentLen, userName)
-	// mediatype, _, err := mime.ParseMediaType(contentType)
-	// if err != nil {
-	// 	logrus.Errorf("ParseMediaType error:%s", err)
-	// 	w.Write([]byte("ParseMediaType error"))
-	// 	return
-	// }
-	// curDir := getCurrentDirectory()
-	// logrus.Infof("curDir:%s", curDir)
-	// dir := curDir + "/public/uploads"
-	// logrus.Infof("mediatype: ", mediatype)
-	// if mediatype == "multipart/form-data" {
-	// 	logrus.Infof("in multipart parsing...")
-	// 	logrus.Infof("r.MultipartForm:%s", r.MultipartForm)
-	// 	if r.MultipartForm != nil {
-	// 		for name, files := range r.MultipartForm.File {
-	// 			logrus.Errorf("req.MultipartForm.File,name=:%s files:%s", name, len(files))
-	// 			if len(files) != 1 {
-	// 				w.Write([]byte("too many files"))
-	// 				return
-	// 			}
-	// 			if name == "" {
-	// 				w.Write([]byte("is not FileData"))
-	// 				return
-	// 			}
-	// 			for _, f := range files {
-	// 				handle, err := f.Open()
-	// 				if err != nil {
-	// 					w.Write([]byte(fmt.Sprintf("unknown error,fileName=%s,fileSize=%d,err:%s", f.Filename, f.Size, err.Error())))
-	// 					return
-	// 				}
-
-	// 				path := dir + f.Filename
-	// 				dst, _ := os.Create(path)
-	// 				io.Copy(dst, handle)
-	// 				dst.Close()
-	// 				logrus.Infof("successful uploaded,fileName=%s,fileSize=%.2f MB,savePath=%s", f.Filename, float64(contentLen)/1024/1024, path)
-
-	// 				w.Write([]byte("successful,url=" + url.QueryEscape(f.Filename)))
-	// 			}
-	// 		}
-	// 	} else {
-	// 		reader, err := r.MultipartReader()
-	// 		if err != nil {
-	// 			panic(err)
-	// 		}
-	// 		for {
-	// 			p, err := reader.NextPart()
-	// 			if err == io.EOF {
-	// 				logrus.Infof("EOF break")
-	// 				break
-	// 			}
-
-	// 			if err != nil {
-	// 				logrus.Infof("reader.NextPart error:%s", err)
-	// 				break
-	// 			}
-
-	// 			fileName := p.FileName()
-	// 			logrus.Infof("fileName:%s", fileName)
-	// 			if fileName != "" {
-	// 				_, err = os.Stat(dir)
-	// 				if err != nil && os.IsNotExist(err) {
-	// 					//目录不存在
-	// 					err = os.MkdirAll(dir, 0777)
-	// 					if err != nil {
-	// 						logrus.Infof("create dir failed:%s", err)
-	// 						continue
-	// 					}
-	// 				}
-	// 				fo, err := os.Create(dir + "/" + fileName)
-	// 				if err != nil {
-	// 					logrus.Infof("os create file err: ", err)
-	// 					continue
-	// 				}
-	// 				defer fo.Close()
-	// 				defer recordToSql2(fileName, userName, contentLen)
-	// 				formValue, _ := ioutil.ReadAll(p)
-	// 				fo.Write(formValue)
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	// logrus.Infof("***********************************")
-
-	// var bts = []byte("success")
-	// w.Write(bts)
 }
 
 func broadCastOnline() {
@@ -812,71 +672,6 @@ func queryUploadFilesFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(ret))
-	//
-	// tokens := r.Header["Token"]
-	// if tokens == nil {
-	// 	res := HttpResponse{false, "need token", -1, ""}
-	// 	ret, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("json marshal failed.")
-	// 		io.WriteString(w, "json marshal failed.")
-	// 		return
-	// 	}
-	// 	io.WriteString(w, string(ret))
-	// 	return
-	// }
-	// token := tokens[0]
-	// logrus.Infof("queryUploadFilesFunction token:%s", token)
-	// if token != "20200101" {
-	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
-	// 	_, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("queryUploadFilesFunction json marshal failed.")
-	// 		io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
-	// 		return
-	// 	}
-	// }
-
-	// //check the new user exists or not
-	// g_Db, err := connectSql()
-	// msg := "connect sql failed"
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer g_Db.Close()
-	// strSql := "select file_name from chat_upload_files order by create_time desc;"
-	// stmt, err := g_Db.Prepare(strSql)
-	// msg = "queryUploadFilesFunction Prepare sql failed 1."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// rows, err := stmt.Query()
-	// msg = "queryUploadFilesFunction Query sql failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer rows.Close()
-
-	// var fileName string
-	// var files []string
-	// for rows.Next() {
-	// 	err := rows.Scan(&fileName)
-	// 	msg = "queryUploadFilesFunction Failed to get sql item."
-	// 	if !checkErr(err, msg, w) {
-	// 		return
-	// 	}
-	// 	files = append(files, fileName)
-	// }
-
-	// response := FilesResponse{true, "success", files}
-	// bts, err := json.Marshal(response)
-	// if err != nil {
-	// 	logrus.Errorf("queryUploadFilesFunction json marshal failed.")
-	// 	io.WriteString(w, "queryUploadFilesFunction json marshal failed.")
-	// 	return
-	// }
-	// io.WriteString(w, string(bts))
 }
 
 func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
@@ -888,80 +683,6 @@ func queryUploadFilesFunction2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(ret))
-
-	// tokens := r.Header["Token"]
-	// if tokens == nil {
-	// 	res := HttpResponse{false, "need token", -1, ""}
-	// 	ret, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
-	// 		io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
-	// 		return
-	// 	}
-	// 	io.WriteString(w, string(ret))
-	// 	return
-	// }
-	// token := tokens[0]
-	// logrus.Infof("queryUploadFilesFunction2 token:%s", token)
-	// if token != "20200101" {
-	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
-	// 	_, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
-	// 		io.WriteString(w, "json marshal failed.")
-	// 		return
-	// 	}
-	// }
-
-	// //check the new user exists or not
-
-	// g_Db, err := connectSql()
-	// msg := "connect sql failed"
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer g_Db.Close()
-	// strSql := "select file_name,file_size,upload_user,create_time from chat_upload_files order by create_time desc;"
-	// stmt, err := g_Db.Prepare(strSql)
-	// msg = "queryUploadFilesFunction2 Prepare sql failed 1."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// rows, err := stmt.Query()
-	// msg = "queryUploadFilesFunction2 Query sql failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer rows.Close()
-
-	// var fileName string
-	// var fileSize int
-	// var uploadUser sql.NullString
-	// var createTime sql.NullTime
-	// var files []FileInfo
-	// for rows.Next() {
-	// 	err := rows.Scan(&fileName, &fileSize, &uploadUser, &createTime)
-	// 	msg = "queryUploadFilesFunction2 Failed to get sql item."
-	// 	if !checkErr(err, msg, w) {
-	// 		return
-	// 	}
-	// 	var fileInfo FileInfo
-	// 	fileInfo.FileName = fileName
-	// 	fileInfo.FileSize = fileSize
-	// 	fileInfo.UploadUser = uploadUser
-	// 	fileInfo.CreateTime = createTime
-	// 	files = append(files, fileInfo)
-	// }
-
-	// response := FilesResponse2{true, "success", files}
-	// bts, err := json.Marshal(response)
-	// if err != nil {
-	// 	logrus.Errorf("queryUploadFilesFunction2 json marshal failed.")
-	// 	io.WriteString(w, "queryUploadFilesFunction2 json marshal failed.")
-	// 	return
-	// }
-	// io.WriteString(w, string(bts))
 }
 
 func deleteFile(w http.ResponseWriter, r *http.Request) {
@@ -973,97 +694,6 @@ func deleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(ret))
-
-	// tokens := r.Header["Token"]
-	// if tokens == nil {
-	// 	res := HttpResponse{false, "need token", -1, ""}
-	// 	ret, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("json marshal failed.")
-	// 		io.WriteString(w, "json marshal failed.")
-	// 		return
-	// 	}
-	// 	io.WriteString(w, string(ret))
-	// 	return
-	// }
-	// token := tokens[0]
-	// if token != "20200101" {
-	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
-	// 	_, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("json marshal failed.")
-	// 		io.WriteString(w, "json marshal failed.")
-	// 		return
-	// 	}
-	// }
-
-	// utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
-	// body, err := ioutil.ReadAll(utf8Reader)
-	// msg := "delete file ReadAll body failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// var deleteFile DeleteFile
-	// err = json.Unmarshal(body, &deleteFile)
-	// msg = "delete file json unmarshal failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// //Check username and password from mysql
-
-	// g_Db, err := connectSql()
-	// msg = "connect sql failed"
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer g_Db.Close()
-	// strSql := "select id, file_name from chat_upload_files where file_name=?"
-	// stmt, err := g_Db.Prepare(strSql)
-	// msg = "Prepare sql failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// rows, err := stmt.Query(deleteFile.FileName)
-	// msg = "Query sql failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer rows.Close()
-
-	// g_Mutex.Lock()
-	// defer g_Mutex.Unlock()
-	// var id int
-	// var file_name string
-	// for rows.Next() {
-	// 	err := rows.Scan(&id, &file_name)
-	// 	logrus.Infof("fileName:%s", file_name)
-	// 	msg = "Failed to get sql item."
-	// 	if !checkErr(err, msg, w) {
-	// 		return
-	// 	}
-
-	// 	delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
-	// 	g_Db.Query(delSql)
-	// }
-
-	// response := HttpResponse{true, "success", id, file_name}
-	// bts, err := json.Marshal(response)
-	// if err != nil {
-	// 	logrus.Errorf("json marshal failed.")
-	// 	io.WriteString(w, "json marshal failed.")
-	// 	return
-	// }
-
-	// f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
-	// err = os.Remove(f)
-	// if err != nil {
-	// 	msg = "remove file from disk failed.{}"
-	// 	logrus.Errorf(msg, err)
-	// }
-	// io.WriteString(w, string(bts))
 }
 
 func deleteFile2(w http.ResponseWriter, r *http.Request) {
@@ -1075,111 +705,6 @@ func deleteFile2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, string(ret))
-
-	// tokens := r.Header["Token"]
-	// if tokens == nil {
-	// 	res := HttpResponse{false, "need token", -1, ""}
-	// 	ret, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("json marshal failed.")
-	// 		io.WriteString(w, "json marshal failed.")
-	// 		return
-	// 	}
-	// 	io.WriteString(w, string(ret))
-	// 	return
-	// }
-	// token := tokens[0]
-	// if token != "20200101" {
-	// 	res := HttpResponse{false, "Token verify failed.", -1, ""}
-	// 	_, err := json.Marshal(res)
-	// 	if err != nil {
-	// 		logrus.Errorf("json marshal failed.")
-	// 		io.WriteString(w, "json marshal failed.")
-	// 		return
-	// 	}
-	// }
-
-	// utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
-	// body, err := ioutil.ReadAll(utf8Reader)
-	// msg := "delete file ReadAll body failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// var deleteFile DeleteFile2
-	// err = json.Unmarshal(body, &deleteFile)
-	// msg = "delete file json unmarshal failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// logrus.Infof("delete file:%s by user:%s", deleteFile.FileName, deleteFile.UserName)
-
-	// //Check username and password from mysql
-	// g_Db, err := connectSql()
-	// msg = "connect sql failed"
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer g_Db.Close()
-	// strSql := "select id, file_name from chat_upload_files where file_name=?"
-	// stmt, err := g_Db.Prepare(strSql)
-	// msg = "Prepare sql failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-
-	// rows, err := stmt.Query(deleteFile.FileName)
-	// msg = "Query sql failed."
-	// if !checkErr(err, msg, w) {
-	// 	return
-	// }
-	// defer rows.Close()
-	// g_Mutex.Lock()
-	// defer g_Mutex.Unlock()
-	// var id int64
-	// delSql := "delete from chat_upload_files where file_name='" + deleteFile.FileName + "'"
-	// if g_sqlConfig.SqliteFlag {
-	// 	ret, err := g_Db.Exec(delSql)
-	// 	if err != nil {
-	// 		logrus.Errorf("sqlite db inuse:%d", g_Db.Stats().InUse)
-	// 		logrus.Errorf("sqlite delete failed:[%v]", err.Error())
-	// 		response := HttpResponse{false, "delete failed", -1, deleteFile.FileName}
-	// 		bts, err := json.Marshal(response)
-	// 		if err != nil {
-	// 			logrus.Errorf("json marshal failed.")
-	// 			io.WriteString(w, "json marshal failed.")
-	// 			return
-	// 		}
-	// 		io.WriteString(w, string(bts))
-	// 		return
-	// 	}
-	// 	id, err = ret.RowsAffected()
-	// 	if !checkErr(err, msg, w) {
-	// 		return
-	// 	}
-	// } else {
-	// 	_, err = g_Db.Query(delSql)
-	// 	if err != nil {
-	// 		logrus.Errorf("mysql delete failed:[%v]", err.Error())
-	// 	}
-	// }
-
-	// response := HttpResponse{true, "success", int(id), deleteFile.FileName}
-	// bts, err := json.Marshal(response)
-	// if err != nil {
-	// 	logrus.Errorf("json marshal failed.")
-	// 	io.WriteString(w, "json marshal failed.")
-	// 	return
-	// }
-
-	// f := g_strWorkDir + "/public/uploads/" + deleteFile.FileName
-	// err = os.Remove(f)
-	// if err != nil {
-	// 	msg = "remove file from disk failed.%v"
-	// 	logrus.Errorf(msg, err)
-	// }
-	// io.WriteString(w, string(bts))
 }
 
 func uploadClient(w http.ResponseWriter, r *http.Request) {

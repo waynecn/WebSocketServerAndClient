@@ -5,8 +5,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/sirupsen/logrus"
+
+	jwt "github.com/golang-jwt/jwt"
 )
 
 func loginFunction(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +85,20 @@ func loginFunction(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, string(bts))
 		return
 	}
-	response := HttpResponse{true, "success", id, user_name}
+	//token
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user": user_name,
+		"exp":  time.Now().Add(24 * time.Hour * time.Duration(1)).Unix(),
+		"iat":  time.Now().Unix(),
+	})
+	tokenString, err := token.SignedString([]byte(APP_KEY))
+	msg = "generate token failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
+	response := LoginHttpResponse{true, "success", id, user_name, tokenString}
 	bts, err := json.Marshal(response)
 	if err != nil {
 		logrus.Errorf("json marshal failed.")
@@ -215,8 +231,20 @@ func loginFunction2(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	//token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user": user_name,
+		"exp":  time.Now().Add(24 * time.Hour * time.Duration(1)).Unix(),
+		"iat":  time.Now().Unix(),
+	})
+	tokenString, err := token.SignedString([]byte(APP_KEY))
+	msg = "generate token failed."
+	if !checkErr(err, msg, w) {
+		return
+	}
+
 	clientItem := ClientItem{newClientFlag, finalFileName, finalMd5Str, maxVersionNumber}
-	response := HttpResponse2{true, "success", userId, user_name, clientItem}
+	response := LoginHttpResponse2{true, "success", userId, user_name, clientItem, tokenString}
 	bts, err := json.Marshal(response)
 	if err != nil {
 		logrus.Errorf("json marshal failed.")

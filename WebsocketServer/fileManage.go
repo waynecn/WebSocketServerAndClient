@@ -20,17 +20,6 @@ import (
 根据用户查询该用户自行
 */
 func queryUploadFilesFunction3(w http.ResponseWriter, r *http.Request) {
-	tokens := r.Header["Token"]
-	if tokens == nil {
-		NormalResponse(w, false, "need token", -1, "", runFuncName())
-		return
-	}
-	token := tokens[0]
-	if token != "20200101" {
-		NormalResponse(w, false, "Token verify failed.", -1, "", runFuncName())
-		return
-	}
-
 	params := r.URL.Query()
 	userId := params.Get("userId")
 	if userId == "" {
@@ -129,17 +118,6 @@ func queryUploadFilesFunction3(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteFile3(w http.ResponseWriter, r *http.Request) {
-	tokens := r.Header["Token"]
-	if tokens == nil {
-		NormalResponse(w, false, "need token", -1, "", runFuncName())
-		return
-	}
-	token := tokens[0]
-	if token != "20200101" {
-		NormalResponse(w, false, "invalid token", -1, "", runFuncName())
-		return
-	}
-
 	utf8Reader := transform.NewReader(r.Body, simplifiedchinese.GBK.NewDecoder())
 	body, err := ioutil.ReadAll(utf8Reader)
 	msg := "delete file ReadAll body failed."
