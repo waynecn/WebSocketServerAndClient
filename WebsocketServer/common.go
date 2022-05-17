@@ -301,7 +301,7 @@ func checkUserExist(userId string) bool {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var userType sql.NullInt16
+		var userType sql.NullInt32
 		err = rows.Scan(&userType)
 		if err != nil {
 			logrus.Errorf("Scan sql error:%v  func:%s", err, runFuncName())

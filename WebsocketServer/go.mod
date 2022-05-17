@@ -4,7 +4,7 @@ go 1.14
 
 require (
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/gorilla/websocket v1.4.2
 	github.com/lestrrat/go-file-rotatelogs v0.0.0-20180223000712-d3151e2a480f
 	github.com/lestrrat/go-strftime v0.0.0-20180220042222-ba3bf9c1d042 // indirect

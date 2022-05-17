@@ -47,7 +47,7 @@ func queryUploadFilesFunction3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userType sql.NullInt16
+	var userType sql.NullInt32
 	for rows.Next() {
 		err = rows.Scan(&userType)
 		if err != nil {
@@ -61,7 +61,7 @@ func queryUploadFilesFunction3(w http.ResponseWriter, r *http.Request) {
 		NormalResponse(w, false, "invalid user", -1, "", runFuncName())
 		return
 	}
-	if userType.Int16 == 1 {
+	if userType.Int32 == 1 {
 		queryFilesUrl := "select file_name,file_size,upload_user,create_time from chat_upload_files order by create_time desc;"
 		stmt, err = db.Prepare(queryFilesUrl)
 		if err != nil {
@@ -159,7 +159,7 @@ func deleteFile3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	var userType sql.NullInt16
+	var userType sql.NullInt32
 	count := 0
 	for rows.Next() {
 		err = rows.Scan(&userType)

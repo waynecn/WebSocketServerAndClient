@@ -98,7 +98,7 @@ func middlewareHandler(h http.Handler) http.Handler {
 		purePaths := strings.Split(endPaths, "?")
 		purePath := purePaths[len(purePaths)-1]
 		if purePath == "loginnew" || purePath == "lotteryHistory" ||
-			purePath == "lottery" || purePath == "register" {
+			purePath == "lottery" || purePath == "register" || purePath == "queryKjgg" {
 			h.ServeHTTP(w, r)
 			return
 		}
