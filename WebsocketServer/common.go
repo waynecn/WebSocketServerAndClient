@@ -246,6 +246,8 @@ func initSql() (*sql.DB, error) {
 			"file_name" varchar(255) NULL,
 			"file_size" bigint(20) NULL,
 			"upload_user" varchar(255) NULL,
+			"user_id" int(11) DEFAULT NULL,
+			"to_user_id" int(11) DEFAULT NULL,
 			"create_time" TIMESTAMP default (datetime('now', 'localtime'))
 		  );`
 		res, err := db.Exec(tableSql)
