@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>生成彩票</title>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        .updateContent{
+            width: 500px;
+            height: 200px;
+        }
+    </style>
+</head>
+<body>
+
+<form action="" id="getLotteryNumber" class="fh5co-form animate-box" onsubmit="return false" method="post"
+	  data-animate-effect="fadeInLeft">
+	<div class="form-group">
+		<label for="host" class="sr-only">服务地址</label>
+		<input type="text" class="form-control" id="host" name="host" placeholder="127.0.0.1"
+			   autocomplete="off" value="127.0.0.1">
+	</div>
+    <div class="form-group">
+		<label for="port" class="sr-only">服务端口</label>
+		<input type="number" class="form-control" id="port" name="port" placeholder="5134"
+			   autocomplete="off" value="5134">
+	</div>
+    <div class="form-group">
+        <label for="lotterys" class="sr-only">生成结果</label>
+        <input type="text" class="form-control" id="lotterys" name="lotterys" placeholder=""
+			   autocomplete="off" value="" readonly=true>
+    </div>
+	</br>
+	<div class="form-group">
+		<input type="button" onclick="getLotteryNumber()" value="生成" class="btn btn-primary">
+	</div>
+
+	</br>
+    </br>
+    <div class="form-group">
+		<input type="button" onclick="getLotteryHistoryNumber()" value="历史记录" class="btn btn-primary">
+		<body onload="getLotteryHistoryNumber()" value="历史记录" class="btn btn-primary">
+        <table id="results" border="1">
+            <tr>
+				<th>序号</th>
+                <th>号码</th>
+                <th>生成日期</th>
+				<th>期数</th>
+				<th>开奖日期</th>
+				<th>开奖结果</th>
+				<th>我是一等奖？</th>
+            </tr>
+			<tr id="result"></tr>
+        </table>
+		<table id="results2" border="1">
+		</table>
+	</div>
+    <table>
+        <div></div>
+    </table>
+</form>
+
+</body>
+
+<script type="text/javascript">
+		function getLotteryNumber() {
+			var xmlhttp;
+			if (window.XMLHttpRequest)
+			{// code for IE7+, Firefox, Chrome, Opera, Safari
+				xmlhttp=new XMLHttpRequest();
+			}
+			else
+			{// code for IE6, IE5
+				xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+			}
+
+            var host = document.getElementById("host").value;
+            var port = document.getElementById("port").value;
+			var url = "http://" + host + ":" + port + "/lottery";
+			console.log("url:", url);
+			
+			xmlhttp.open("POST", url, true);
+			xmlhttp.onreadystatechange=function()
+			{
+				if (xmlhttp.readyState==4)
+				{
+					if (xmlhttp.status==200) {
+                        document.getElementById("lotterys").value=(xmlhttp.responseText)
+					}else {
+						alert(xmlhttp.responseText);
+					}
+				} 
+			}
+			xmlhttp.send();
+        }
+
+        function getLotteryHistoryNumber() {
+            var xmlhttp;
+			if (window.XMLHttpRequest)
+			{// code for IE7+, Firefox, Chrome, Opera, Safari
+				xmlhttp=new XMLHttpRequest();
+			}
+			else
+			{// code for IE6, IE5
+				xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+			}
+
+            var host = document.getElementById("host").value;
+            var port = document.getElementById("port").value;
+			var url = "http://" + host + ":" + port + "/lotteryHistory";
+			console.log("url:", url);
+			
+			xmlhttp.open("POST", url, true);
+			xmlhttp.onreadystatechange=function()
+			{
+				if (xmlhttp.readyState==4)
+				{
+					if (xmlhttp.status==200) {
+                        var object = JSON.parse(xmlhttp.responseText)
+                        var tables = `<tr>
+							<th>序号</th>
+							<th>号码</th>
+							<th>生成日期</th>
+							<th>期数</th>
+							<th>开奖日期</th>
+							<th>开奖结果</th>
+							<th>我是一等奖？</th>
+						</tr>`
+                        for (i = 0; i < object.length; ++i) {
+                            tables += `<tr id="resultItem` + i + `"><td>` + (i + 1) + `</td><td>` + object[i].lottery + `</td><td>` + 
+							object[i].create_time_str + `</td><td>` + object[i].code.String + `</td><td>` + object[i].date.String + `</td><td>` +
+							 object[i].red.String + ' ' + object[i].blue.String +
+							 `</td><td>` + object[i].myPrizeGrade.Int32 +  `</td></tr>`
+                        }
+                        console.log(tables)
+						document.getElementById("results").innerHTML = ""
+                        document.getElementById("results").innerHTML = document.getElementById("results").innerText + tables
+					}else {
+						alert(xmlhttp.responseText);
+					}
+				} 
+			}
+			xmlhttp.send();
+        }
+    </script>
+</html>

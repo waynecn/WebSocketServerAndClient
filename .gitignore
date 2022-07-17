@@ -25,6 +25,8 @@ _testmain.go
 WebsocketServer/WebsocketServer*
 WebsocketServer/public/uploads/*
 WebsocketServer/public/clients/*
+WebsocketServer/public/update/*
+WebsocketServer/public/public/*
 WebsocketServer/log/*
 WebsocketServer/serverDB.db
 
