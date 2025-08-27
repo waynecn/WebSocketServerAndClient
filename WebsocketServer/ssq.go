@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -58,6 +59,10 @@ type KjggItem struct {
 	Content     string            `json:"content"`
 	AddMoney    string            `json:"addmoney"`
 	AddMoney2   string            `json:"addmoney2"`
+	Zj1         string            `json:"zj1"` //add 20241118
+	Mj1         string            `json:"mj1"` //add 20241118
+	Zj6         string            `json:"zj6"` //add 20241118
+	Mj6         string            `json:"mj6"` //add 20241118
 	Msg         string            `json:"msg"`
 	Z2Add       string            `json:"z2add"`
 	M2Add       string            `json:"m2add"`
@@ -68,6 +73,16 @@ type PrizeGradesItem struct {
 	Type      int    `json:"type"`
 	TypeNum   string `json:"typenum"`
 	TypeMoney string `json:"typemoney"`
+}
+
+type LotteryDatas struct {
+	TotalCount  int `json:"totalcount"`
+	FirstCount  int `json:"firstcount"`
+	SecondCount int `json:"secondcount"`
+	ThirdCount  int `json:"thirdcount"`
+	ForthCount  int `json:"forthcount"`
+	FifthCount  int `json:"fifthcount"`
+	SixthCount  int `json:"sixthcount"`
 }
 
 var db *sql.DB
@@ -146,6 +161,48 @@ func lotteryFunc(w http.ResponseWriter, r *http.Request) {
 	w.Write(bts)
 }
 
+func lotteryFuncUseMarkov(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		io.WriteString(w, "只允许POST请求")
+		return
+	}
+
+	// 2. 构建概率模型
+	redTransition := buildRedTransition(redHistory) // 红球转移概率表
+	blueProbs := buildBlueProbability(blueHistory)  // 蓝球频率表
+
+	// 3. 生成号码
+	redNumbers := generateRedNumbers(redTransition) // 生成红球
+	blueNumber := generateBlueNumber(blueProbs)     // 生成蓝球
+
+	// 4. 输出结果（红球按升序排列，符合双色球规则）
+	sort.Ints(redNumbers)
+	// fmt.Printf("🎫 双色球号码：\n")
+	// fmt.Printf("红球：%v\n", redNumbers)
+	// fmt.Printf("蓝球：%d\n", blueNumber)
+
+	var resultStr string
+	for index := range redNumbers {
+		redStr := strconv.FormatInt(int64(redNumbers[index]), 10)
+		if len(redStr) < 2 {
+			redStr = "0" + redStr //单数补0
+		}
+		resultStr += redStr + " "
+	}
+
+	blueStr := strconv.FormatInt(int64(blueNumber), 10)
+	if len(blueStr) < 2 {
+		blueStr = "0" + blueStr //单数补0
+	}
+	resultStr += blueStr
+
+	//将生成结果保存到sqlite数据库中
+	record(resultStr)
+
+	var bts = []byte(resultStr)
+	w.Write(bts)
+}
+
 func lotteryHistoryFunc(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		io.WriteString(w, "只允许POST请求")
@@ -153,6 +210,27 @@ func lotteryHistoryFunc(w http.ResponseWriter, r *http.Request) {
 	}
 
 	results := getRecord()
+
+	bts, err := json.Marshal(results)
+	if err != nil {
+		io.WriteString(w, "序列化查询结果失败")
+		return
+	}
+	io.WriteString(w, string(bts))
+}
+
+func lotteryHistoryFunc2(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		io.WriteString(w, "只允许POST请求")
+		return
+	}
+
+	r.ParseForm()
+	page := r.Form.Get("page")
+	pagecount := r.Form.Get("pagecount")
+	//fmt.Printf("page: %s pagecount: %s\n", page, pagecount)
+
+	results := getRecord2(page, pagecount)
 
 	bts, err := json.Marshal(results)
 	if err != nil {
@@ -310,6 +388,70 @@ func getRecord() []Lotterys {
 	return results
 }
 
+func getRecord2(page string, pagecount string) []Lotterys {
+	absDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
+		return nil
+	}
+	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
+	if err != nil {
+		fmt.Printf("sqlite open failed:[%v]", err.Error())
+		return nil
+	}
+	defer db.Close()
+
+	querySql := "select id, lottery, create_time,code, date, red, blue, my_prize_grade from lottery order by create_time desc;"
+	if len(page) > 0 && len(pagecount) > 0 {
+		pagenum, err := strconv.Atoi(page)
+		if err != nil {
+			fmt.Println("将page转为int错误:", err)
+			return nil
+		}
+		pagecountnum, err := strconv.Atoi(pagecount)
+		if err != nil {
+			fmt.Println("将pagecount转为int错误:", err)
+			return nil
+		}
+		if pagenum > 0 {
+			pagenum = pagenum - 1
+		}
+		offset := pagenum * pagecountnum
+		querySql = fmt.Sprintf("select id, lottery, create_time,code, date, red, blue, my_prize_grade from lottery order by create_time desc LIMIT %d OFFSET %d;", pagecountnum, offset)
+	}
+	//fmt.Println("querySql:", querySql)
+	stmt, err := db.Prepare(querySql)
+	if err != nil {
+		fmt.Println("Prepare error:", err)
+		return nil
+	}
+	rows, err := stmt.Query()
+	if err != nil {
+		fmt.Println("query error:", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []Lotterys
+	for rows.Next() {
+		var item Lotterys
+		err = rows.Scan(&item.Id, &item.Lottery, &item.CreateTime, &item.Code, &item.Date, &item.Red, &item.Blue, &item.MyPrizeGrade)
+		if err != nil {
+			fmt.Println("Scan error:", err)
+			continue
+		}
+
+		if item.Red.Valid {
+			item.Red.String = strings.Replace(item.Red.String, ",", " ", -1)
+		}
+		if item.CreateTime.Valid {
+			item.CreateTimeStr = item.CreateTime.Time.Format("2006-01-02 15:04:05")
+		}
+		results = append(results, item)
+	}
+	return results
+}
+
 func queryKjgg() {
 	client := &http.Client{Timeout: 10 * time.Second}
 
@@ -368,7 +510,7 @@ func queryKjgg() {
 	}
 }
 
-//根据日期查询居于两个开奖公告之间的号码记录 并用于后续更新开奖结果到数据库中
+// 根据日期查询居于两个开奖公告之间的号码记录 并用于后续更新开奖结果到数据库中
 func getLotteryRecord(startDate string, endDate string) []Lotterys {
 	absDir, err := os.Getwd()
 	if err != nil {
@@ -410,7 +552,7 @@ func getLotteryRecord(startDate string, endDate string) []Lotterys {
 	return results
 }
 
-//根据开奖结果计算号码是几等奖 返回：红球匹配数量 篮球匹配数量 几等奖
+// 根据开奖结果计算号码是几等奖 返回：红球匹配数量 篮球匹配数量 几等奖
 func calcMyPrizeGrade(myCode string, red string, blue string) (int, int, int) {
 	myNumbers := strings.Split(myCode, " ") //红蓝一起 最后一个是蓝球
 	redBalls := strings.Split(red, ",")     //开奖红球数组
@@ -520,4 +662,68 @@ func updateMyRecord(item Lotterys) {
 		return
 	}
 	fmt.Println("更新id:", item.Id, "成功")
+}
+
+func loadDataImpl(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		io.WriteString(w, "只允许POST请求")
+		return
+	}
+
+	results := getDatas()
+
+	bts, err := json.Marshal(results)
+	//fmt.Printf("loadData:[%v]\n", string(bts))
+	if err != nil {
+		io.WriteString(w, "序列化查询结果失败")
+		return
+	}
+	io.WriteString(w, string(bts))
+}
+
+func getDatas() []LotteryDatas {
+	absDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
+		return nil
+	}
+	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
+	if err != nil {
+		fmt.Printf("sqlite open failed:[%v]", err.Error())
+		return nil
+	}
+	defer db.Close()
+
+	//querySql := "select count(1) as totalcount from lottery order by create_time desc;"
+	querySql := `select count(1) as totalcount, (select count(1) from lottery where my_prize_grade=1) as firstcount,
+		(select count(1) from lottery where my_prize_grade=2) as secondcount,
+		(select count(1) from lottery where my_prize_grade=3) as thirdcount,
+		(select count(1) from lottery where my_prize_grade=4) as forthcount,
+		(select count(1) from lottery where my_prize_grade=5) as fifthcount,
+		(select count(1) from lottery where my_prize_grade=6) as sixthcount 
+		 from lottery`
+	stmt, err := db.Prepare(querySql)
+	if err != nil {
+		fmt.Println("Prepare error:", err)
+		return nil
+	}
+	rows, err := stmt.Query()
+	if err != nil {
+		fmt.Println("query error:", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []LotteryDatas
+	for rows.Next() {
+		var item LotteryDatas
+		err = rows.Scan(&item.TotalCount, &item.FirstCount, &item.SecondCount, &item.ThirdCount, &item.ForthCount,
+			&item.FifthCount, &item.SixthCount)
+		if err != nil {
+			fmt.Println("Scan error:", err)
+			return nil
+		}
+		results = append(results, item)
+	}
+	return results
 }

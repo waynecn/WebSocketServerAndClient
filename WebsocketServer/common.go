@@ -200,7 +200,7 @@ func connectSql() (*sql.DB, error) {
 			g_sqlConfig.Port,
 			g_sqlConfig.Database,
 			g_sqlConfig.Charset)
-		log.Printf("dsn:%v", dsn)
+		//log.Printf("dsn:%v", dsn)
 		db, err := sql.Open("mysql", dsn)
 		if err != nil {
 			log.Printf("mysql connect failed, detail is [%v]", err.Error())

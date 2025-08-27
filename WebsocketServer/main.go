@@ -73,7 +73,7 @@ func ConfigLocalFileSystemLogger(logPath string, logFileName string, maxAge time
 
 var g_sqlConfig SqlConfig
 
-//var g_Db *sql.DB
+// var g_Db *sql.DB
 var g_strWorkDir string
 
 func ReadConfig(path string) SqlConfig {
@@ -98,7 +98,8 @@ func middlewareHandler(h http.Handler) http.Handler {
 		purePaths := strings.Split(endPaths, "?")
 		purePath := purePaths[len(purePaths)-1]
 		if purePath == "loginnew" || purePath == "lotteryHistory" ||
-			purePath == "lottery" || purePath == "register" || purePath == "queryKjgg" {
+			purePath == "lottery" || purePath == "register" || purePath == "queryKjgg" ||
+			purePath == "lotteryHistory2" || purePath == "loadData" {
 			h.ServeHTTP(w, r)
 			return
 		}
@@ -146,6 +147,9 @@ func middlewareHandler(h http.Handler) http.Handler {
 	})
 }
 
+var redHistory [][]int
+var blueHistory []int
+
 func main() {
 	flag.Parse()
 
@@ -177,7 +181,7 @@ func main() {
 	//Read config
 	configPath := "./config/config.json"
 	g_sqlConfig = ReadConfig(configPath)
-	log.Printf("sqlConfig:%v", g_sqlConfig)
+	//log.Printf("sqlConfig:%v", g_sqlConfig)
 
 	// Create a simple file server
 	fs := http.FileServer(http.Dir("./public"))
@@ -196,9 +200,11 @@ func main() {
 	http.Handle("/delfile2", middlewareHandler(http.HandlerFunc(deleteFile2)))
 	http.Handle("/delfile3", middlewareHandler(http.HandlerFunc(deleteFile3)))
 	http.Handle("/uploadClient", middlewareHandler(http.HandlerFunc(uploadClient)))
-	http.Handle("/lottery", middlewareHandler(http.HandlerFunc(lotteryFunc)))
+	http.Handle("/lottery", middlewareHandler(http.HandlerFunc(lotteryFuncUseMarkov)))
 	http.Handle("/lotteryHistory", middlewareHandler(http.HandlerFunc(lotteryHistoryFunc)))
 	http.Handle("/queryKjgg", middlewareHandler(http.HandlerFunc(queryKjggImpl)))
+	http.Handle("/lotteryHistory2", middlewareHandler(http.HandlerFunc(lotteryHistoryFunc2)))
+	http.Handle("/loadData", middlewareHandler(http.HandlerFunc(loadDataImpl)))
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)
