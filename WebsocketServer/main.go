@@ -147,14 +147,17 @@ func middlewareHandler(h http.Handler) http.Handler {
 	})
 }
 
-var redHistory [][]int
-var blueHistory []int
+var distinctRed []string
+var redHistory [][]int // 红球历史（每一行是一期的6个红球，按顺序）
+var blueHistory []int  // 蓝球历史
 
 func main() {
 	flag.Parse()
 
 	initSql()
 	initLotterySqlite()
+	readHistoryDataFromSql("serverDB.db")
+	fmt.Println("buffer size:", len(redHistory))
 
 	absDir, err := os.Getwd()
 	if err != nil {

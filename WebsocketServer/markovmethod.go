@@ -27,9 +27,6 @@ func readHistoryData(filename string) ([][]int, []int, error) {
 		return nil, nil, err
 	}
 
-	var redHistory [][]int // 红球历史（每一行是一期的6个红球，按顺序）
-	var blueHistory []int  // 蓝球历史
-
 	for _, record := range records {
 		// 解析红球（前6列）
 		red := make([]int, 6)
@@ -91,10 +88,7 @@ func readHistoryDataFromSql(filename string) ([][]int, []int, error) {
 	}
 	defer rows.Close()
 
-	var distinctRed []string
-	var redHistory [][]int // 红球历史（每一行是一期的6个红球，按顺序）
-	var blueHistory []int  // 蓝球历史
-
+	//cnt := 0
 	for rows.Next() {
 		var item Lotterys
 		err = rows.Scan(&item.Id, &item.Lottery, &item.CreateTime, &item.Code, &item.Date, &item.Red, &item.Blue, &item.MyPrizeGrade)
@@ -106,6 +100,7 @@ func readHistoryDataFromSql(filename string) ([][]int, []int, error) {
 		if item.Red.Valid {
 			//去重
 			if Contains(distinctRed, item.Red.String) {
+				//fmt.Println("重复的字符项：", item.Red.String)
 				continue
 			}
 			distinctRed = append(distinctRed, item.Red.String)
@@ -117,12 +112,15 @@ func readHistoryDataFromSql(filename string) ([][]int, []int, error) {
 			for i := 0; i < 6; i++ {
 				r, err := strconv.Atoi(record[i])
 				if err != nil {
+					fmt.Println("将字符转为数字失败：", err)
 					return nil, nil, err
 				}
 				red[i] = r
 			}
+			//cnt++
 			redHistory = append(redHistory, red)
 		}
+		//fmt.Println("red count:", cnt)
 		if item.Blue.Valid {
 			// 解析蓝球（第7列）
 			blue, err := strconv.Atoi(item.Blue.String)

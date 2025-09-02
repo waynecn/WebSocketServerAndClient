@@ -505,6 +505,30 @@ func queryKjgg() {
 				item.RedCount = sql.NullInt32{int32(redCount), true}
 				item.BlueCount = sql.NullInt32{int32(blueCount), true}
 				updateMyRecord(item)
+
+				//put red and blue to redHistory and blueHistory
+
+				//去重
+				if !Contains(distinctRed, item.Red.String) {
+					reds := strings.Split(item.Red.String, ",")
+					red := make([]int, 6)
+					for i := 0; i < 6; i++ {
+						r, err := strconv.Atoi(reds[i])
+						if err != nil {
+							fmt.Println("将红球转为数字时发生错误：", err)
+							return
+						}
+						red = append(red, r)
+					}
+					redHistory = append(redHistory, red)
+				}
+
+				b, err := strconv.Atoi(item.Blue.String)
+				if err != nil {
+					fmt.Println("将蓝球转为数字时发生错误：", err)
+				} else {
+					blueHistory = append(blueHistory, b)
+				}
 			}
 		}
 	}
