@@ -99,7 +99,8 @@ func middlewareHandler(h http.Handler) http.Handler {
 		purePath := purePaths[len(purePaths)-1]
 		if purePath == "loginnew" || purePath == "lotteryHistory" ||
 			purePath == "lottery" || purePath == "register" || purePath == "queryKjgg" ||
-			purePath == "lotteryHistory2" || purePath == "loadData" {
+			purePath == "lotteryHistory2" || purePath == "loadData" ||
+			purePath == "lotteryHistoryWithPage" {
 			h.ServeHTTP(w, r)
 			return
 		}
@@ -208,6 +209,8 @@ func main() {
 	http.Handle("/queryKjgg", middlewareHandler(http.HandlerFunc(queryKjggImpl)))
 	http.Handle("/lotteryHistory2", middlewareHandler(http.HandlerFunc(lotteryHistoryFunc2)))
 	http.Handle("/loadData", middlewareHandler(http.HandlerFunc(loadDataImpl)))
+	//20250909
+	http.Handle("/lotteryHistoryWithPage", middlewareHandler(http.HandlerFunc(lotteryHistoryFuncWithPage)))
 
 	// Configure websocket route
 	http.HandleFunc("/ws", handleConnections)

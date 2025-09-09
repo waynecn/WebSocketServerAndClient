@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<title>生成彩票</title>
+    <title>lottery</title>
     <meta charset="UTF-8">
     <title></title>
     <style>
@@ -14,133 +14,243 @@
 <body>
 
 <form action="" id="getLotteryNumber" class="fh5co-form animate-box" onsubmit="return false" method="post"
-	  data-animate-effect="fadeInLeft">
-	<div class="form-group">
-		<label for="host" class="sr-only">服务地址</label>
-		<input type="text" class="form-control" id="host" name="host" placeholder="127.0.0.1"
-			   autocomplete="off" value="127.0.0.1">
-	</div>
+      data-animate-effect="fadeInLeft">
     <div class="form-group">
-		<label for="port" class="sr-only">服务端口</label>
-		<input type="number" class="form-control" id="port" name="port" placeholder="5134"
-			   autocomplete="off" value="5134">
-	</div>
+        <label for="host" class="sr-only">服务地址</label>
+        <input type="text" class="form-control" id="host" name="host" placeholder="127.0.0.1"
+               autocomplete="off" value="127.0.0.1">
+    </div>
+    <div class="form-group">
+        <label for="port" class="sr-only">服务端口</label>
+        <input type="number" class="form-control" id="port" name="port" placeholder="5133"
+               autocomplete="off" value="5133">
+    </div>
     <div class="form-group">
         <label for="lotterys" class="sr-only">生成结果</label>
         <input type="text" class="form-control" id="lotterys" name="lotterys" placeholder=""
-			   autocomplete="off" value="" readonly=true>
+               autocomplete="off" value="" readonly=true>
     </div>
-	</br>
-	<div class="form-group">
-		<input type="button" onclick="getLotteryNumber()" value="生成" class="btn btn-primary">
-	</div>
-
-	</br>
     </br>
     <div class="form-group">
-		<input type="button" onclick="getLotteryHistoryNumber()" value="历史记录" class="btn btn-primary">
-		<body onload="getLotteryHistoryNumber()" value="历史记录" class="btn btn-primary">
+        <input type="button" onclick="getLotteryNumber()" value="生成" class="btn btn-primary">
+    </div>
+    <!--显示汇总信息-->
+    <div class="summary-info">
+        <fieldset>
+            <legend>汇总</legend>
+            <label id="totalCount2">总数量：${totalCount}</label>
+            <label id="totalAmount">总金额：${totalAmount}</label>
+            <label id="firstCount">一等奖数量：${firstCount}</label>
+            <label id="secondCount">二等奖数量：${secondCount}</label>
+            <label id="thirdCount">三等奖数量：${thirdCount}</label>
+            <label id="forthCount">四等奖数量：${forthCount}</label>
+            <label id="fifthCount">五等奖数量：${fifthCount}</label>
+            <label id="sixthCount">六等奖数量：${sixthCount}</label>
+        </fieldset>
+    </div>
+
+    </br>
+    </br>
+    <div class="form-group">
+        <input type="button" onclick="getLotteryHistoryNumber()" value="历史记录" class="btn btn-primary">
+        <body onload="getLotteryHistoryNumber(); loadData();" value="历史记录" class="btn btn-primary">
         <table id="results" border="1">
             <tr>
-				<th>序号</th>
+                <th>序号</th>
                 <th>号码</th>
                 <th>生成日期</th>
-				<th>期数</th>
-				<th>开奖日期</th>
-				<th>开奖结果</th>
-				<th>我是一等奖？</th>
+                <th>期数</th>
+                <th>开奖日期</th>
+                <th>开奖结果</th>
+                <th>我是一等奖？</th>
             </tr>
-			<tr id="result"></tr>
+            <tr id="result"></tr>
         </table>
-		<table id="results2" border="1">
-		</table>
-	</div>
+        <table id="results2" border="1">
+        </table>
+    </div>
     <table>
         <div></div>
     </table>
 </form>
 
+<div>
+  <a href="#" id="prev">上一页</a>
+  <a href="#" id="next">下一页</a>
+
+  <span>第 <span id="pageNum"></span> 页</span>
+
+  <span>/</span>
+
+  <span>共<span id="totalPage"></span>页</span>
+</div>
 </body>
 
 <script type="text/javascript">
-		function getLotteryNumber() {
-			var xmlhttp;
-			if (window.XMLHttpRequest)
-			{// code for IE7+, Firefox, Chrome, Opera, Safari
-				xmlhttp=new XMLHttpRequest();
-			}
-			else
-			{// code for IE6, IE5
-				xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
-			}
+        function getLotteryNumber() {
+            var xmlhttp;
+            if (window.XMLHttpRequest)
+            {// code for IE7+, Firefox, Chrome, Opera, Safari
+                xmlhttp=new XMLHttpRequest();
+            }
+            else
+            {// code for IE6, IE5
+                xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+            }
 
             var host = document.getElementById("host").value;
             var port = document.getElementById("port").value;
-			var url = "http://" + host + ":" + port + "/lottery";
-			console.log("url:", url);
-			
-			xmlhttp.open("POST", url, true);
-			xmlhttp.onreadystatechange=function()
-			{
-				if (xmlhttp.readyState==4)
-				{
-					if (xmlhttp.status==200) {
+            var url = "http://" + host + ":" + port + "/lottery";
+            console.log("url:", url);
+
+            xmlhttp.open("POST", url, true);
+            xmlhttp.onreadystatechange=function()
+            {
+                if (xmlhttp.readyState==4)
+                {
+                    if (xmlhttp.status==200) {
                         document.getElementById("lotterys").value=(xmlhttp.responseText)
-					}else {
-						alert(xmlhttp.responseText);
-					}
-				} 
-			}
-			xmlhttp.send();
+                    }else {
+                        alert(xmlhttp.responseText);
+                    }
+                }
+            }
+            xmlhttp.send();
         }
 
         function getLotteryHistoryNumber() {
             var xmlhttp;
-			if (window.XMLHttpRequest)
-			{// code for IE7+, Firefox, Chrome, Opera, Safari
-				xmlhttp=new XMLHttpRequest();
-			}
-			else
-			{// code for IE6, IE5
-				xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
-			}
+            if (window.XMLHttpRequest)
+            {// code for IE7+, Firefox, Chrome, Opera, Safari
+                xmlhttp=new XMLHttpRequest();
+            }
+            else
+            {// code for IE6, IE5
+                xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+            }
 
             var host = document.getElementById("host").value;
             var port = document.getElementById("port").value;
-			var url = "http://" + host + ":" + port + "/lotteryHistory";
-			console.log("url:", url);
-			
-			xmlhttp.open("POST", url, true);
-			xmlhttp.onreadystatechange=function()
-			{
-				if (xmlhttp.readyState==4)
-				{
-					if (xmlhttp.status==200) {
+            var url = "http://" + host + ":" + port + "/lotteryHistoryWithPage";
+            console.log("url:", url);
+            
+            xmlhttp.open("POST", url, true);
+            xmlhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xmlhttp.onreadystatechange=function()
+            {
+                if (xmlhttp.readyState==4)
+                {
+                    if (xmlhttp.status==200) {
                         var object = JSON.parse(xmlhttp.responseText)
+                        //console.log("getLotteryHistoryNumber object:", object)
                         var tables = `<tr>
-							<th>序号</th>
-							<th>号码</th>
-							<th>生成日期</th>
-							<th>期数</th>
-							<th>开奖日期</th>
-							<th>开奖结果</th>
-							<th>我是一等奖？</th>
-						</tr>`
-                        for (i = 0; i < object.length; ++i) {
-                            tables += `<tr id="resultItem` + i + `"><td>` + (i + 1) + `</td><td>` + object[i].lottery + `</td><td>` + 
-							object[i].create_time_str + `</td><td>` + object[i].code.String + `</td><td>` + object[i].date.String + `</td><td>` +
-							 object[i].red.String + ' ' + object[i].blue.String +
-							 `</td><td>` + object[i].myPrizeGrade.Int32 +  `</td></tr>`
+                            <th>序号</th>
+                            <th>号码</th>
+                            <th>生成日期</th>
+                            <th>期数</th>
+                            <th>开奖日期</th>
+                            <th>开奖结果</th>
+                            <th>我是一等奖？</th>
+                        </tr>`
+                        if (object != null) {
+                            for (i = 0; i < object.length; ++i) {
+                                tables += `<tr id="resultItem` + i + `"><td>` + (i + 1) + `</td><td>` + object[i].lottery + `</td><td>` + 
+                                object[i].create_time_str + `</td><td>` + object[i].code.String + `</td><td>` + object[i].date.String + `</td><td>` +
+                                 object[i].red.String + ' ' + object[i].blue.String +
+                                 `</td><td>` + object[i].myPrizeGrade.Int32 +  `</td></tr>`
+                            }
                         }
                         console.log(tables)
-						document.getElementById("results").innerHTML = ""
+                        document.getElementById("results").innerHTML = ""
                         document.getElementById("results").innerHTML = document.getElementById("results").innerText + tables
-					}else {
-						alert(xmlhttp.responseText);
-					}
-				} 
-			}
-			xmlhttp.send();
+                    }else {
+                        alert(xmlhttp.responseText);
+                    }
+                }
+            }
+            xmlhttp.send("page="+pageNum +"&pagecount="+perPage);
         }
+
+    function loadData() {
+        var xmlhttp;
+        if (window.XMLHttpRequest) {
+            xmlhttp=new XMLHttpRequest();
+        } else {
+            xmlhttp=new ActiveXObject("Microsoft.XMLHTTP");
+        }
+        var host = document.getElementById("host").value;
+        var port = document.getElementById("port").value;
+        var url = "http://" + host + ":" + port + "/loadData";
+        console.log("url:", url);
+        xmlhttp.open("POST", url, true);
+        xmlhttp.onreadystatechange=function() {
+            console.log("ready state:", xmlhttp.readyState, " status:", xmlhttp.status);
+            if (xmlhttp.readyState==4) {
+                if (xmlhttp.status==200) {
+                    var object = JSON.parse(xmlhttp.responseText);
+                    //console.log("object:", object);
+                    if (object != null && object.length > 0) {
+                        totalCount = object[0].totalcount
+                        totalPage = Math.ceil(totalCount / perPage);
+                        document.getElementById('totalCount2').innerText = "总数量：" + totalCount;
+                        document.getElementById('totalAmount').innerText = "总金额：" + (totalCount * 2);
+                        firstCount = object[0].firstcount;
+                        document.getElementById('firstCount').innerText = "一等奖数量：" + firstCount;
+                        secondCount = object[0].secondcount;
+                        document.getElementById('secondCount').innerText = "二等奖数量：" + secondCount;
+                        thirdCount = object[0].thirdcount;
+                        document.getElementById('thirdCount').innerText = "三等奖数量：" + thirdCount;
+                        forthCount = object[0].forthcount;
+                        document.getElementById('forthCount').innerText = "四等奖数量：" + forthCount;
+                        fifthCount = object[0].fifthcount;
+                        document.getElementById('fifthCount').innerText = "五等奖数量：" + fifthCount;
+                        sixthCount = object[0].sixthcount;
+                        document.getElementById('sixthCount').innerText = "六等奖数量：" + sixthCount;
+                        document.getElementById('totalPage').innerText = totalPage;
+                    }
+                }
+            }
+        }
+        xmlhttp.send();
+    }
+
+    // 假设总数据条数totalCount,每页显示数perPage
+    var totalCount = 100;
+    const perPage = 50;
+
+    // 计算总页数
+    var totalPage = Math.ceil(totalCount / perPage);
+    document.getElementById('totalPage').innerText = totalPage;
+
+    // 当前页码,初始为1
+    let pageNum = 1;
+    document.getElementById('pageNum').innerText = pageNum;
+
+    // 上一页点击
+    document.getElementById('prev').onclick = function(){
+      if(pageNum > 1){
+        pageNum--;
+        getLotteryHistoryNumber();
+        //updateStatus();
+      }
+    }
+
+    // 下一页点击  
+    document.getElementById('next').onclick = function(){
+        pageNum++;
+        getLotteryHistoryNumber();
+      if(pageNum < totalPage){
+        pageNum++;
+        getLotteryHistoryNumber();
+        //updateStatus();
+      }
+    }
+
+    // 更新状态
+    function updateStatus(){
+      document.getElementById('pageNum').innerText = pageNum;
+
+      // 加载当前页数据...
+    }
     </script>
 </html>

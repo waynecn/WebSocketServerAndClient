@@ -219,6 +219,27 @@ func lotteryHistoryFunc(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(bts))
 }
 
+func lotteryHistoryFuncWithPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		io.WriteString(w, "只允许POST请求")
+		return
+	}
+
+	r.ParseForm()
+	page := r.Form.Get("page")
+	pagecount := r.Form.Get("pagecount")
+	//fmt.Printf("page: %s pagecount: %s\n", page, pagecount)
+
+	results := getRecordWithPage(page, pagecount)
+
+	bts, err := json.Marshal(results)
+	if err != nil {
+		io.WriteString(w, "序列化查询结果失败")
+		return
+	}
+	io.WriteString(w, string(bts))
+}
+
 func lotteryHistoryFunc2(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		io.WriteString(w, "只允许POST请求")
@@ -389,6 +410,70 @@ func getRecord() []Lotterys {
 }
 
 func getRecord2(page string, pagecount string) []Lotterys {
+	absDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
+		return nil
+	}
+	db, err := sql.Open("sqlite3", absDir+"/serverDB.db")
+	if err != nil {
+		fmt.Printf("sqlite open failed:[%v]", err.Error())
+		return nil
+	}
+	defer db.Close()
+
+	querySql := "select id, lottery, create_time,code, date, red, blue, my_prize_grade from lottery order by create_time desc;"
+	if len(page) > 0 && len(pagecount) > 0 {
+		pagenum, err := strconv.Atoi(page)
+		if err != nil {
+			fmt.Println("将page转为int错误:", err)
+			return nil
+		}
+		pagecountnum, err := strconv.Atoi(pagecount)
+		if err != nil {
+			fmt.Println("将pagecount转为int错误:", err)
+			return nil
+		}
+		if pagenum > 0 {
+			pagenum = pagenum - 1
+		}
+		offset := pagenum * pagecountnum
+		querySql = fmt.Sprintf("select id, lottery, create_time,code, date, red, blue, my_prize_grade from lottery order by create_time desc LIMIT %d OFFSET %d;", pagecountnum, offset)
+	}
+	//fmt.Println("querySql:", querySql)
+	stmt, err := db.Prepare(querySql)
+	if err != nil {
+		fmt.Println("Prepare error:", err)
+		return nil
+	}
+	rows, err := stmt.Query()
+	if err != nil {
+		fmt.Println("query error:", err)
+		return nil
+	}
+	defer rows.Close()
+
+	var results []Lotterys
+	for rows.Next() {
+		var item Lotterys
+		err = rows.Scan(&item.Id, &item.Lottery, &item.CreateTime, &item.Code, &item.Date, &item.Red, &item.Blue, &item.MyPrizeGrade)
+		if err != nil {
+			fmt.Println("Scan error:", err)
+			continue
+		}
+
+		if item.Red.Valid {
+			item.Red.String = strings.Replace(item.Red.String, ",", " ", -1)
+		}
+		if item.CreateTime.Valid {
+			item.CreateTimeStr = item.CreateTime.Time.Format("2006-01-02 15:04:05")
+		}
+		results = append(results, item)
+	}
+	return results
+}
+
+func getRecordWithPage(page string, pagecount string) []Lotterys {
 	absDir, err := os.Getwd()
 	if err != nil {
 		fmt.Println("获取程序工作目录失败，错误描述：" + err.Error())
