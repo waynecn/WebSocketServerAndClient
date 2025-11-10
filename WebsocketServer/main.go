@@ -224,7 +224,7 @@ func main() {
 
 	//准备启动定时器 定时查询开奖公告以及历史开奖公告
 	c := cron.New()
-	c.AddFunc("0 40 21 * * ?", queryKjgg) //每天21点31分
+	c.AddFunc("0 00 22 * * ?", queryKjgg) //每天21点31分
 	c.Start()
 	defer c.Stop()
 

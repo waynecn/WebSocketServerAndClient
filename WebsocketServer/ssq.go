@@ -161,19 +161,86 @@ func lotteryFunc(w http.ResponseWriter, r *http.Request) {
 	w.Write(bts)
 }
 
+func getRedBallsFromHeadFourTimesRedBalls() []int {
+	var redBalls []int
+	for len(redBalls) < 6 {
+		n, err := rand.Int(rand.Reader, big.NewInt(34))
+		if err != nil {
+			continue
+		}
+		if n.Int64() <= 0 {
+			continue
+		}
+
+		//if not in PREV_FOUR_TIMES_REDBALLS, then generate a new one
+		for i := 0; i < len(PREV_FOUR_TIMES_REDBALLS); i++ {
+			for j := 0; j < len(PREV_FOUR_TIMES_REDBALLS[i]); j++ {
+				if n.Int64() == int64(PREV_FOUR_TIMES_REDBALLS[i][j]) {
+					exists := false
+					//make sure there is no duplicate number
+					for k := 0; k < len(redBalls); k++ {
+						if n.Int64() == int64(redBalls[k]) {
+							exists = true
+						}
+					}
+					if !exists {
+						redBalls = append(redBalls, int(n.Int64()))
+					}
+				}
+			}
+		}
+	}
+	fmt.Println("from four red history:", redBalls)
+	return redBalls
+}
+
+func getBlueBallFromPrevFourTimesBlueBalls() int {
+	for {
+		n, err := rand.Int(rand.Reader, big.NewInt(17))
+		if err != nil {
+			continue
+		}
+		if n.Int64() <= 0 {
+			continue
+		}
+
+		//if not in PREV_FOUR_TIMES_BLUEBALLS, regenerate one
+		for i := 0; i < len(PREV_FOUR_TIMES_BLUEBALLS); i++ {
+			if n.Int64() == int64(PREV_FOUR_TIMES_BLUEBALLS[i]) {
+				fmt.Println("get blue ball from prev four number:", n.Int64())
+				return int(n.Int64())
+			}
+		}
+	}
+}
+
+var PREV_FOUR_TIMES_REDBALLS [][]int //前四次生成的红球记录 用于生成第五次红球
+var PREV_FOUR_TIMES_BLUEBALLS []int  //前四次生成的蓝球记录 用于生成第五次蓝球
 func lotteryFuncUseMarkov(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		io.WriteString(w, "只允许POST请求")
 		return
 	}
+	var redNumbers []int
+	var blueNumber int
+	if GENERATE_COUNT_NUM%5 == 4 {
+		//从前4次的红球里面再取出来6个红球
+		redNumbers = getRedBallsFromHeadFourTimesRedBalls()
+		blueNumber = getBlueBallFromPrevFourTimesBlueBalls()
 
-	// 2. 构建概率模型
-	redTransition := buildRedTransition(redHistory) // 红球转移概率表
-	blueProbs := buildBlueProbability(blueHistory)  // 蓝球频率表
+		//使用完毕后置空
+		PREV_FOUR_TIMES_REDBALLS = make([][]int, 0)
+	} else {
+		// 2. 构建概率模型
+		redTransition := buildRedTransition(redHistory) // 红球转移概率表
+		blueProbs := buildBlueProbability(blueHistory)  // 蓝球频率表
 
-	// 3. 生成号码
-	redNumbers := generateRedNumbers(redTransition) // 生成红球
-	blueNumber := generateBlueNumber(blueProbs)     // 生成蓝球
+		// 3. 生成号码
+		redNumbers = generateRedNumbers(redTransition) // 生成红球
+		blueNumber = generateBlueNumber(blueProbs)     // 生成蓝球
+		PREV_FOUR_TIMES_REDBALLS = append(PREV_FOUR_TIMES_REDBALLS, redNumbers)
+		PREV_FOUR_TIMES_BLUEBALLS = append(PREV_FOUR_TIMES_BLUEBALLS, blueNumber)
+	}
 
 	// 4. 输出结果（红球按升序排列，符合双色球规则）
 	sort.Ints(redNumbers)
@@ -197,10 +264,16 @@ func lotteryFuncUseMarkov(w http.ResponseWriter, r *http.Request) {
 	resultStr += blueStr
 
 	//将生成结果保存到sqlite数据库中
+	fmt.Println("str:", resultStr)
 	record(resultStr)
 
 	var bts = []byte(resultStr)
 	w.Write(bts)
+	if GENERATE_COUNT_NUM == 4 {
+		GENERATE_COUNT_NUM = 0
+	} else {
+		GENERATE_COUNT_NUM = GENERATE_COUNT_NUM + 1
+	}
 }
 
 func lotteryHistoryFunc(w http.ResponseWriter, r *http.Request) {
@@ -606,17 +679,19 @@ func queryKjgg() {
 						red = append(red, r)
 					}
 					redHistory = append(redHistory, red)
-				}
+					distinctRed = append(distinctRed, item.Red.String)
 
-				b, err := strconv.Atoi(item.Blue.String)
-				if err != nil {
-					fmt.Println("将蓝球转为数字时发生错误：", err)
-				} else {
-					blueHistory = append(blueHistory, b)
+					b, err := strconv.Atoi(item.Blue.String)
+					if err != nil {
+						fmt.Println("将蓝球转为数字时发生错误：", err)
+					} else {
+						blueHistory = append(blueHistory, b)
+					}
 				}
 			}
 		}
 	}
+	fmt.Println("after query record buffer size:", len(redHistory), len(blueHistory))
 }
 
 // 根据日期查询居于两个开奖公告之间的号码记录 并用于后续更新开奖结果到数据库中

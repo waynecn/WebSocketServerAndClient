@@ -158,6 +158,8 @@ type QueryFileParams struct {
 
 var APP_KEY = "363c0530-2183-448e-b6fb-59250577d106"
 
+var GENERATE_COUNT_NUM = 0
+
 // 获取正在运行的函数名
 func runFuncName() string {
 	pc := make([]uintptr, 1)
