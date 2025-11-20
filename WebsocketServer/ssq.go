@@ -230,6 +230,7 @@ func lotteryFuncUseMarkov(w http.ResponseWriter, r *http.Request) {
 
 		//使用完毕后置空
 		PREV_FOUR_TIMES_REDBALLS = make([][]int, 0)
+		PREV_FOUR_TIMES_BLUEBALLS = make([]int, 0)
 	} else {
 		// 2. 构建概率模型
 		redTransition := buildRedTransition(redHistory) // 红球转移概率表
